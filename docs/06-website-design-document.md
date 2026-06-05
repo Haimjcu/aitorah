@@ -15,8 +15,10 @@ AI Torah sits at the intersection of ancient wisdom and modern technology. The v
 |---|---|---|
 | `--primary` | `#1a3a5c` | Navy blue — headers, CTAs, nav |
 | `--primary-light` | `#2563eb` | Interactive elements, links |
-| `--accent` | `#b5914a` | Gold — highlights, badges, Torah quotes |
-| `--accent-light` | `#f0d080` | Gold tint for backgrounds |
+| `--accent` | `#b5914a` | Gold — filled buttons, active Torah quote borders |
+| `--accent-dark` | `#8a6a2e` | Hover/active state on gold buttons |
+| `--accent-light` | `#f0d080` | Badge backgrounds, section tints — always pair with `--accent-text` |
+| `--accent-text` | `#7a5c1e` | Text on `--accent-light` backgrounds (passes 4.5:1 contrast) |
 | `--background` | `#fafaf8` | Warm off-white — page background |
 | `--surface` | `#ffffff` | Cards, modals |
 | `--surface-alt` | `#f4f3ef` | Alternate section backgrounds |
@@ -26,6 +28,8 @@ AI Torah sits at the intersection of ancient wisdom and modern technology. The v
 | `--success` | `#16a34a` | Confirmations |
 | `--error` | `#dc2626` | Errors |
 | `--border` | `#e5e3db` | Warm gray borders |
+
+**Gold usage rule:** Use `--accent` (#b5914a) on dark or white surfaces — it passes contrast as a border, icon, or button label on white. For filled gold badges or tinted section backgrounds, use `--accent-light` (#f0d080) as the background and `--accent-text` (#7a5c1e) as the text — never `--text-primary` or white, which both fail contrast on that yellow. `--accent-dark` (#8a6a2e) is only for `:hover`/`:active` on gold-filled buttons; never use it as a standalone text color.
 
 ### 1.3 Typography
 

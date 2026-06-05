@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Torah — Mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@400;500;600&family=Noto+Sans+Hebrew:wght@400;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<style>
+/* ── CSS Variables ─────────────────────────────────────────── */
+:root {
+  --primary:       #1a3a5c;
+  --primary-light: #2563eb;
+  --accent:        #b5914a;
+  --accent-dark:   #8a6a2e;
+  --accent-light:  #f0d080;
+  --accent-text:   #7a5c1e;
+  --bg:            #fafaf8;
+  --surface:       #ffffff;
+  --surface-alt:   #f4f3ef;
+  --text:          #1a1a1a;
+  --text-sec:      #6b7280;
+  --text-hebrew:   #1a3a5c;
+  --success:       #16a34a;
+  --error:         #dc2626;
+  --border:        #e5e3db;
+  --radius:        8px;
+  --shadow:        0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.05);
+  --shadow-md:     0 4px 12px rgba(0,0,0,.10);
+}
+
+/* ── Reset ─────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); font-size: 16px; line-height: 1.6; }
+img  { display: block; max-width: 100%; }
+a    { color: inherit; text-decoration: none; }
+
+/* ── Page switcher (mockup nav) ────────────────────────────── */
+#mockup-bar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+  background: #0f172a; color: #94a3b8;
+  display: flex; gap: 4px; padding: 6px 16px; font-size: 12px; font-family: 'JetBrains Mono', monospace;
+}
+#mockup-bar span { color: #f0d080; margin-right: 8px; }
+#mockup-bar button {
+  background: #1e293b; border: none; color: #94a3b8; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 12px;
+}
+#mockup-bar button.active { background: #2563eb; color: #fff; }
+
+.page { display: none; }
+.page.active { display: block; }
+body { padding-top: 34px; }
+
+/* ── Typography ────────────────────────────────────────────── */
+h1, h2, h3, h4 { font-family: 'Playfair Display', serif; line-height: 1.2; }
+h1 { font-size: clamp(2rem, 5vw, 3.5rem); }
+h2 { font-size: clamp(1.5rem, 3vw, 2.25rem); }
+h3 { font-size: 1.25rem; }
+.hebrew { font-family: 'Noto Sans Hebrew', sans-serif; direction: rtl; color: var(--text-hebrew); }
+code, pre { font-family: 'JetBrains Mono', monospace; }
+
+/* ── Utilities ─────────────────────────────────────────────── */
+.container  { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+.flex       { display: flex; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.gap-4      { gap: 16px; }
+.gap-6      { gap: 24px; }
+.gap-8      { gap: 32px; }
+.grid-3     { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.grid-4     { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+.text-center { text-align: center; }
+.text-sec   { color: var(--text-sec); font-size: 14px; }
+.mt-2 { margin-top: 8px; }
+.mt-4 { margin-top: 16px; }
+.mt-6 { margin-top: 24px; }
+.mt-8 { margin-top: 32px; }
+.mb-2 { margin-bottom: 8px; }
+.mb-4 { margin-bottom: 16px; }
+
+/* ── Buttons ───────────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 20px; border-radius: var(--radius); font-size: 15px; font-weight: 500;
+  cursor: pointer; border: none; transition: all .15s;
+}
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: #243f6a; }
+.btn-gold { background: var(--accent); color: #fff; }
+.btn-gold:hover { background: var(--accent-dark); }
+.btn-outline { background: transparent; color: var(--primary); border: 1.5px solid var(--primary); }
+.btn-outline:hover { background: var(--primary); color: #fff; }
+.btn-ghost { background: transparent; color: var(--text-sec); }
+.btn-ghost:hover { background: var(--surface-alt); }
+.btn-outline-white { background: transparent; color: #fff; border: 1.5px solid rgba(255,255,255,.5); }
+.btn-outline-white:hover { background: rgba(255,255,255,.1); }
+.btn-sm { padding: 6px 14px; font-size: 13px; }
+.btn-lg { padding: 14px 28px; font-size: 17px; }
+
+/* ── Badges ────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex; align-items: center;
+  padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 500;
+}
+.badge-gold  { background: var(--accent-light); color: var(--accent-text); }
+.badge-blue  { background: #dbeafe; color: #1d4ed8; }
+.badge-green { background: #dcfce7; color: #166534; }
+.badge-gray  { background: var(--surface-alt); color: var(--text-sec); }
+.badge-red   { background: #fee2e2; color: #991b1b; }
+
+/* ── Cards ─────────────────────────────────────────────────── */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow);
+}
+.card-body { padding: 20px; }
+.card:hover { box-shadow: var(--shadow-md); }
+
+/* ── Section spacing ───────────────────────────────────────── */
+.section { padding: 80px 0; }
+.section-alt { background: var(--surface-alt); }
+.section-dark { background: var(--primary); color: #fff; }
+
+/* ══════════════════════════════════════════════════════════════
+   NAVBAR
+══════════════════════════════════════════════════════════════ */
+.navbar {
+  position: sticky; top: 34px; z-index: 100;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.navbar-inner {
+  display: flex; align-items: center; justify-content: space-between;
+  height: 64px;
+}
+.nav-logo {
+  display: flex; align-items: center; gap: 10px;
+  font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: var(--primary);
+}
+.nav-logo-mark {
+  width: 36px; height: 36px; background: var(--primary);
+  border-radius: 8px; display: flex; align-items: center; justify-content: center;
+}
+.nav-logo-mark svg { color: var(--accent-light); }
+.nav-links { display: flex; align-items: center; gap: 4px; }
+.nav-links a {
+  padding: 6px 12px; border-radius: 6px; font-size: 14px; font-weight: 500; color: var(--text-sec);
+  transition: all .15s;
+}
+.nav-links a:hover { color: var(--text); background: var(--surface-alt); }
+.nav-links a.active { color: var(--primary); background: #eef2ff; }
+.nav-actions { display: flex; align-items: center; gap: 8px; }
+.avatar {
+  width: 34px; height: 34px; border-radius: 50%; background: var(--primary);
+  color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PAGE 1 — HOMEPAGE
+══════════════════════════════════════════════════════════════ */
+
+/* Hero */
+.hero {
+  background: var(--primary);
+  background-image:
+    radial-gradient(ellipse at 70% 50%, rgba(181,145,74,.15) 0%, transparent 60%),
+    url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23b5914a' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  padding: 100px 0 80px;
+  color: #fff;
+}
+.hero-eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(181,145,74,.2); border: 1px solid rgba(181,145,74,.4);
+  color: var(--accent-light); padding: 5px 14px; border-radius: 99px;
+  font-size: 13px; font-weight: 500; margin-bottom: 24px;
+}
+.hero h1 { color: #fff; margin-bottom: 20px; max-width: 700px; }
+.hero-sub { font-size: 19px; color: rgba(255,255,255,.75); max-width: 560px; margin-bottom: 36px; line-height: 1.65; }
+.hero-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.hero-stats {
+  display: flex; gap: 40px; margin-top: 64px; padding-top: 40px;
+  border-top: 1px solid rgba(255,255,255,.12);
+}
+.hero-stat-num { font-size: 28px; font-weight: 700; color: var(--accent-light); font-family: 'Playfair Display', serif; }
+.hero-stat-label { font-size: 13px; color: rgba(255,255,255,.6); margin-top: 2px; }
+
+/* Feature strip */
+.feature-strip { padding: 64px 0; }
+.feature-card { text-align: center; padding: 32px 24px; }
+.feature-icon {
+  width: 56px; height: 56px; border-radius: 14px;
+  background: #eef2ff; display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 16px;
+}
+.feature-icon svg { color: var(--primary); }
+.feature-card h3 { margin-bottom: 8px; font-size: 1.1rem; }
+.feature-card p { color: var(--text-sec); font-size: 14px; line-height: 1.6; }
+
+/* How it works */
+.how-steps { display: flex; gap: 0; position: relative; }
+.how-steps::before {
+  content: ''; position: absolute; top: 28px; left: calc(16.6% + 12px); right: calc(16.6% + 12px);
+  height: 2px; background: var(--border);
+}
+.how-step { flex: 1; text-align: center; padding: 0 16px; }
+.how-num {
+  width: 56px; height: 56px; border-radius: 50%; background: var(--primary); color: #fff;
+  display: flex; align-items: center; justify-content: center; font-family: 'Playfair Display', serif;
+  font-size: 22px; font-weight: 700; margin: 0 auto 16px; position: relative; z-index: 1;
+}
+.how-step h3 { font-size: 1rem; margin-bottom: 6px; }
+.how-step p { font-size: 13px; color: var(--text-sec); }
+
+/* Torah quote block */
+.torah-quote {
+  border-left: 4px solid var(--accent); background: #fffdf5;
+  padding: 20px 24px; border-radius: 0 var(--radius) var(--radius) 0;
+}
+.torah-quote .hebrew { font-size: 20px; margin-bottom: 8px; line-height: 1.7; }
+.torah-quote .english { color: var(--text-sec); font-size: 15px; font-style: italic; margin-bottom: 6px; }
+.torah-quote .ref { font-size: 13px; color: var(--accent-text); font-weight: 600; }
+
+/* App cards */
+.app-card { overflow: hidden; transition: transform .15s; }
+.app-card:hover { transform: translateY(-2px); }
+.app-card-header { display: flex; align-items: center; gap: 12px; padding: 20px 20px 0; }
+.app-logo {
+  width: 48px; height: 48px; border-radius: 12px; border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0;
+  background: var(--surface-alt);
+}
+.app-card .card-body { padding-top: 12px; }
+.app-card h3 { font-size: 1rem; margin-bottom: 4px; }
+.app-card p { font-size: 13px; color: var(--text-sec); line-height: 1.5; margin-bottom: 12px; }
+.app-card-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* Event card */
+.event-card { overflow: hidden; }
+.event-card-img { height: 160px; background: linear-gradient(135deg, var(--primary) 0%, #2a5f8f 100%); display: flex; align-items: flex-end; padding: 16px; }
+.event-card-date { font-size: 13px; color: rgba(255,255,255,.8); display: flex; align-items: center; gap: 6px; }
+.event-card .card-body { padding: 16px 20px 20px; }
+.event-card h3 { font-size: 1rem; margin-bottom: 6px; }
+.event-card p { font-size: 13px; color: var(--text-sec); margin-bottom: 12px; }
+
+/* Blog card */
+.blog-card { overflow: hidden; }
+.blog-card-img { height: 180px; background: var(--surface-alt); display: flex; align-items: center; justify-content: center; color: var(--text-sec); }
+.blog-card .card-body { padding: 20px; }
+.blog-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.blog-card h3 { font-size: 1.05rem; margin-bottom: 8px; line-height: 1.4; }
+.blog-card p { font-size: 13px; color: var(--text-sec); line-height: 1.55; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.blog-author { display: flex; align-items: center; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+.blog-author-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--surface-alt); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: var(--text-sec); }
+
+/* Join CTA */
+.join-cta { padding: 80px 0; text-align: center; background: var(--primary); color: #fff; }
+.join-cta h2 { color: #fff; margin-bottom: 12px; }
+.join-cta p { color: rgba(255,255,255,.75); max-width: 480px; margin: 0 auto 32px; }
+
+/* Footer */
+footer {
+  background: #0f1e30; color: rgba(255,255,255,.7); padding: 48px 0 32px;
+}
+.footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 40px; margin-bottom: 40px; }
+.footer-brand p { font-size: 14px; line-height: 1.6; margin-top: 12px; color: rgba(255,255,255,.5); max-width: 260px; }
+.footer-col h4 { color: #fff; font-size: 13px; font-weight: 600; margin-bottom: 14px; letter-spacing: .5px; text-transform: uppercase; }
+.footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.footer-col ul li a { font-size: 14px; color: rgba(255,255,255,.55); transition: color .15s; }
+.footer-col ul li a:hover { color: #fff; }
+.footer-bottom { border-top: 1px solid rgba(255,255,255,.1); padding-top: 24px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: rgba(255,255,255,.4); }
+.footer-social { display: flex; gap: 12px; }
+.footer-social a { width: 32px; height: 32px; border-radius: 6px; background: rgba(255,255,255,.07); display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,.5); transition: all .15s; }
+.footer-social a:hover { background: rgba(255,255,255,.15); color: #fff; }
+
+/* Section label */
+.section-label { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.section-label::before, .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.section-label span { font-size: 12px; color: var(--text-sec); font-weight: 500; text-transform: uppercase; letter-spacing: .8px; white-space: nowrap; }
+.section-header { text-align: center; margin-bottom: 48px; }
+.section-header h2 { margin-bottom: 12px; }
+.section-header p { color: var(--text-sec); max-width: 500px; margin: 0 auto; }
+
+/* ══════════════════════════════════════════════════════════════
+   APP SHELL (pages 2-4)
+══════════════════════════════════════════════════════════════ */
+.app-shell { display: flex; height: calc(100vh - 34px); overflow: hidden; }
+
+/* Sidebar */
+.sidebar {
+  width: 220px; background: var(--surface); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto;
+}
+.sidebar-logo {
+  display: flex; align-items: center; gap: 10px; padding: 20px 16px 16px;
+  font-family: 'Playfair Display', serif; font-size: 17px; font-weight: 700; color: var(--primary);
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-nav { flex: 1; padding: 12px 8px; }
+.sidebar-nav a {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; border-radius: 7px; font-size: 14px; font-weight: 500; color: var(--text-sec);
+  margin-bottom: 2px; transition: all .15s; cursor: pointer;
+}
+.sidebar-nav a:hover { background: var(--surface-alt); color: var(--text); }
+.sidebar-nav a.active { background: #eef2ff; color: var(--primary); }
+.sidebar-nav a svg { flex-shrink: 0; }
+.sidebar-divider { height: 1px; background: var(--border); margin: 8px; }
+.sidebar-footer { padding: 12px 8px; border-top: 1px solid var(--border); }
+.sidebar-user { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 7px; cursor: pointer; }
+.sidebar-user:hover { background: var(--surface-alt); }
+.sidebar-user-info { flex: 1; min-width: 0; }
+.sidebar-user-info .name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sidebar-user-info .role { font-size: 11px; color: var(--text-sec); }
+
+/* Main area */
+.main-area { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+.main-header {
+  padding: 16px 28px; border-bottom: 1px solid var(--border); background: var(--surface);
+  display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+}
+.main-header h1 { font-size: 1.25rem; color: var(--primary); }
+.main-content { flex: 1; overflow-y: auto; padding: 28px; background: var(--bg); }
+
+/* ══════════════════════════════════════════════════════════════
+   PAGE 2 — STUDY PARTNER
+══════════════════════════════════════════════════════════════ */
+.study-layout { display: flex; gap: 24px; height: 100%; }
+
+/* Session list */
+.session-list { width: 240px; flex-shrink: 0; }
+.session-list h3 { font-size: 13px; font-weight: 600; color: var(--text-sec); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 12px; }
+.new-session-btn { width: 100%; margin-bottom: 12px; justify-content: center; }
+.session-item {
+  display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: var(--radius);
+  cursor: pointer; border: 1px solid transparent; transition: all .15s; margin-bottom: 4px;
+}
+.session-item:hover { background: var(--surface); border-color: var(--border); }
+.session-item.active { background: var(--surface); border-color: var(--primary-light); }
+.session-item-title { font-size: 13px; font-weight: 500; line-height: 1.4; margin-bottom: 2px; }
+.session-item-date { font-size: 11px; color: var(--text-sec); }
+
+/* Chat area */
+.chat-area { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.chat-messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; padding-bottom: 8px; }
+.msg { display: flex; gap: 12px; max-width: 80%; }
+.msg-user { align-self: flex-end; flex-direction: row-reverse; }
+.msg-avatar {
+  width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; font-size: 13px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+}
+.msg-user .msg-avatar { background: var(--primary); color: #fff; }
+.msg-ai .msg-avatar { background: var(--accent-light); color: var(--accent-text); font-family: 'Playfair Display', serif; }
+.msg-bubble { border-radius: 12px; padding: 12px 16px; font-size: 14px; line-height: 1.65; }
+.msg-user .msg-bubble { background: var(--primary); color: #fff; border-radius: 12px 2px 12px 12px; }
+.msg-ai .msg-bubble { background: var(--surface); border: 1px solid var(--border); border-radius: 2px 12px 12px 12px; }
+.msg-sources { margin-top: 12px; }
+.msg-sources summary { font-size: 12px; color: var(--text-sec); cursor: pointer; user-select: none; display: flex; align-items: center; gap: 4px; }
+.msg-sources summary:hover { color: var(--text); }
+.source-card { background: var(--surface-alt); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; margin-top: 8px; }
+.source-card-ref { font-size: 12px; font-weight: 600; color: var(--accent-text); margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+.source-card .hebrew { font-size: 15px; margin-bottom: 6px; line-height: 1.8; }
+.source-card .english { font-size: 12px; color: var(--text-sec); }
+.typing-indicator { display: flex; gap: 4px; padding: 14px 16px; }
+.typing-indicator span { width: 6px; height: 6px; border-radius: 50%; background: var(--primary-light); animation: typing .8s infinite; }
+.typing-indicator span:nth-child(2) { animation-delay: .15s; }
+.typing-indicator span:nth-child(3) { animation-delay: .3s; }
+@keyframes typing { 0%, 60%, 100% { opacity: .3; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-4px); } }
+
+/* Chat input */
+.chat-input-area { margin-top: 16px; flex-shrink: 0; }
+.chat-input-box {
+  display: flex; align-items: flex-end; gap: 10px;
+  background: var(--surface); border: 1.5px solid var(--border); border-radius: 12px; padding: 10px 12px;
+  transition: border-color .15s;
+}
+.chat-input-box:focus-within { border-color: var(--primary-light); }
+.chat-input-box textarea { flex: 1; border: none; outline: none; resize: none; font-family: 'Inter', sans-serif; font-size: 14px; line-height: 1.5; max-height: 120px; background: transparent; }
+.chat-send { width: 36px; height: 36px; border-radius: 8px; background: var(--primary); color: #fff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background .15s; }
+.chat-send:hover { background: var(--primary-light); }
+.chat-hints { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.chat-hint { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 5px 12px; font-size: 12px; color: var(--text-sec); cursor: pointer; transition: all .15s; }
+.chat-hint:hover { border-color: var(--primary); color: var(--primary); }
+
+/* ══════════════════════════════════════════════════════════════
+   PAGE 3 — SEARCH
+══════════════════════════════════════════════════════════════ */
+.search-layout { max-width: 760px; }
+.search-header { margin-bottom: 24px; }
+.search-bar {
+  display: flex; gap: 0; background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: 10px; overflow: hidden; transition: border-color .15s;
+}
+.search-bar:focus-within { border-color: var(--primary-light); }
+.search-bar input { flex: 1; border: none; outline: none; padding: 12px 16px; font-size: 15px; font-family: 'Inter', sans-serif; }
+.search-bar button { background: var(--primary); color: #fff; border: none; padding: 0 20px; cursor: pointer; font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 6px; }
+.search-bar button:hover { background: var(--primary-light); }
+.search-filters { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+.filter-pill {
+  padding: 5px 14px; border-radius: 20px; font-size: 13px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text-sec); transition: all .15s;
+}
+.filter-pill:hover { border-color: var(--primary); color: var(--primary); }
+.filter-pill.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.search-results-count { font-size: 13px; color: var(--text-sec); margin: 20px 0 16px; }
+.result-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 24px; margin-bottom: 12px; transition: box-shadow .15s; }
+.result-card:hover { box-shadow: var(--shadow-md); }
+.result-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+.result-ref { font-weight: 600; font-size: 14px; color: var(--primary); font-family: 'Playfair Display', serif; }
+.result-score { font-size: 12px; color: var(--success); font-weight: 600; background: #dcfce7; padding: 2px 8px; border-radius: 4px; }
+.result-card .hebrew { font-size: 17px; margin-bottom: 8px; line-height: 1.8; }
+.result-card .english { font-size: 13px; color: var(--text-sec); line-height: 1.6; margin-bottom: 12px; }
+.result-actions { display: flex; gap: 8px; }
+.result-source-tag { font-size: 11px; background: var(--surface-alt); color: var(--text-sec); padding: 3px 8px; border-radius: 4px; }
+
+/* ══════════════════════════════════════════════════════════════
+   PAGE 4 — APP DIRECTORY
+══════════════════════════════════════════════════════════════ */
+.dir-layout { display: flex; gap: 28px; }
+.dir-sidebar { width: 200px; flex-shrink: 0; }
+.dir-sidebar h3 { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: var(--text-sec); margin-bottom: 10px; margin-top: 20px; }
+.dir-sidebar h3:first-child { margin-top: 0; }
+.dir-search { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 7px; font-size: 13px; outline: none; background: var(--surface); }
+.dir-search:focus { border-color: var(--primary-light); }
+.filter-check { display: flex; align-items: center; gap: 8px; padding: 4px 0; cursor: pointer; font-size: 13px; color: var(--text-sec); }
+.filter-check input { accent-color: var(--primary); }
+.filter-check:hover { color: var(--text); }
+.dir-main { flex: 1; min-width: 0; }
+.dir-main-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.dir-main-header h2 { font-size: 1.1rem; }
+.dir-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+.dir-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; transition: all .15s; cursor: pointer; }
+.dir-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); border-color: var(--primary-light); }
+.dir-card-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
+.dir-card-logo { width: 44px; height: 44px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-alt); display: flex; align-items: center; justify-content: center; font-size: 20px; }
+.dir-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+.dir-card p { font-size: 12px; color: var(--text-sec); line-height: 1.55; margin-bottom: 12px; }
+.dir-card-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+.dir-card-tags span { font-size: 11px; background: var(--surface-alt); color: var(--text-sec); padding: 2px 8px; border-radius: 4px; }
+
+/* ══════════════════════════════════════════════════════════════
+   RESPONSIVE
+══════════════════════════════════════════════════════════════ */
+@media (max-width: 900px) {
+  .grid-3, .grid-4 { grid-template-columns: repeat(2, 1fr); }
+  .footer-grid { grid-template-columns: 1fr 1fr; }
+  .sidebar { display: none; }
+  .study-layout { flex-direction: column; }
+  .session-list { width: 100%; }
+}
+@media (max-width: 600px) {
+  .grid-3, .grid-4 { grid-template-columns: 1fr; }
+  .nav-links { display: none; }
+  .hero-stats { flex-wrap: wrap; gap: 24px; }
+  .how-steps { flex-direction: column; gap: 24px; }
+  .how-steps::before { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── Mockup page switcher ── -->
+<div id="mockup-bar">
+  <span>AI Torah · Mockup</span>
+  <button class="active" onclick="showPage('home')">Homepage</button>
+  <button onclick="showPage('study')">Study Partner</button>
+  <button onclick="showPage('search')">Torah Search</button>
+  <button onclick="showPage('apps')">App Directory</button>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     PAGE 1 — HOMEPAGE
+════════════════════════════════════════════════════ -->
+<div id="page-home" class="page active">
+
+  <!-- Navbar (marketing) -->
+  <nav class="navbar">
+    <div class="container navbar-inner">
+      <a class="nav-logo" href="#">
+        <div class="nav-logo-mark">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        </div>
+        AI Torah
+      </a>
+      <div class="nav-links">
+        <a href="#">Study</a>
+        <a href="#">Apps</a>
+        <a href="#">Community</a>
+        <a href="#">Blog</a>
+        <a href="#">Events</a>
+      </div>
+      <div class="nav-actions">
+        <button class="btn btn-ghost btn-sm">Sign In</button>
+        <button class="btn btn-gold btn-sm">Get Started →</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-eyebrow">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        Now in open beta — join the community
+      </div>
+      <h1>Explore Torah Through<br>Artificial Intelligence</h1>
+      <p class="hero-sub">A living community of scholars and developers building AI tools rooted in authentic tradition. Ask questions, study sources, and connect with others doing the same.</p>
+      <div class="hero-actions">
+        <button class="btn btn-gold btn-lg">Start Studying Free</button>
+        <button class="btn btn-outline-white btn-lg">Explore Apps →</button>
+      </div>
+      <div class="hero-stats">
+        <div>
+          <div class="hero-stat-num">12,000+</div>
+          <div class="hero-stat-label">Torah texts indexed</div>
+        </div>
+        <div>
+          <div class="hero-stat-num">340+</div>
+          <div class="hero-stat-label">Community members</div>
+        </div>
+        <div>
+          <div class="hero-stat-num">48</div>
+          <div class="hero-stat-label">AI apps in directory</div>
+        </div>
+        <div>
+          <div class="hero-stat-num">24</div>
+          <div class="hero-stat-label">Events hosted</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Feature strip -->
+  <section class="feature-strip">
+    <div class="container">
+      <div class="grid-3">
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <h3>AI Study Partner</h3>
+          <p>Ask any question about Torah, Talmud, or Halacha. Get cited answers from authentic sources, streamed in real time.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="background:#fef9ee;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent-dark)"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </div>
+          <h3>Semantic Torah Search</h3>
+          <p>Search by meaning, not keywords. Find relevant passages across Tanakh, Mishnah, Gemara, Rishonim, and Acharonim.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="background:#f0fdf4;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--success)"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+          <h3>Community & Forum</h3>
+          <p>Structured threads for halachic questions, a developer lab for AI builders, and Discord for real-time collaboration.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Torah quote example -->
+  <section style="padding: 0 0 64px;">
+    <div class="container">
+      <div style="max-width: 640px; margin: 0 auto;">
+        <div class="section-label"><span>Example</span></div>
+        <p style="font-size: 13px; color: var(--text-sec); margin-bottom: 16px; text-align:center;">A response from the AI Study Partner includes cited sources like this:</p>
+        <div class="torah-quote">
+          <div class="hebrew">אֱמֶת קְנֵה וְאַל-תִּמְכֹּר</div>
+          <div class="english">"Buy truth and do not sell it — also wisdom, discipline, and understanding."</div>
+          <div class="ref">— Mishlei 23:23</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section class="section section-alt">
+    <div class="container">
+      <div class="section-header">
+        <h2>How It Works</h2>
+        <p>From question to cited Torah answer in seconds</p>
+      </div>
+      <div class="how-steps">
+        <div class="how-step">
+          <div class="how-num">1</div>
+          <h3>Ask a Question</h3>
+          <p>Type your question in plain English about any Torah topic, halachic issue, or text.</p>
+        </div>
+        <div class="how-step">
+          <div class="how-num">2</div>
+          <h3>AI Finds Sources</h3>
+          <p>Semantic search retrieves relevant passages from our indexed Torah corpus.</p>
+        </div>
+        <div class="how-step">
+          <div class="how-num">3</div>
+          <h3>Study the Answer</h3>
+          <p>Receive a structured response with sources cited, in Hebrew and English.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Featured Apps -->
+  <section class="section">
+    <div class="container">
+      <div class="section-header">
+        <h2>Featured AI Apps</h2>
+        <p>Tools built by the community for Torah study, Halacha, and Jewish education</p>
+      </div>
+      <div class="grid-3">
+        <div class="card app-card">
+          <div class="app-card-header">
+            <div class="app-logo">📖</div>
+            <div>
+              <div style="font-size:14px;font-weight:600;">Sefaria GPT</div>
+              <div style="font-size:12px;color:var(--text-sec);">By Yosef Klein</div>
+            </div>
+            <span class="badge badge-green" style="margin-left:auto;">Live</span>
+          </div>
+          <div class="card-body">
+            <p>Ask questions over Sefaria's full library using GPT-4 with citation-level accuracy and linked source references.</p>
+            <div class="app-card-tags">
+              <span class="badge badge-gray">Sefaria</span>
+              <span class="badge badge-gray">GPT-4</span>
+              <span class="badge badge-gray">Study</span>
+            </div>
+          </div>
+        </div>
+        <div class="card app-card">
+          <div class="app-card-header">
+            <div class="app-logo">⚖️</div>
+            <div>
+              <div style="font-size:14px;font-weight:600;">HalachaBot</div>
+              <div style="font-size:12px;color:var(--text-sec);">By Miriam Cohen</div>
+            </div>
+            <span class="badge badge-blue" style="margin-left:auto;">Beta</span>
+          </div>
+          <div class="card-body">
+            <p>Get halachic guidance with sourced answers from Shulchan Aruch and contemporary poskim. Not a psak—educational only.</p>
+            <div class="app-card-tags">
+              <span class="badge badge-gray">Halacha</span>
+              <span class="badge badge-gray">Claude</span>
+              <span class="badge badge-gray">LangChain</span>
+            </div>
+          </div>
+        </div>
+        <div class="card app-card">
+          <div class="app-card-header">
+            <div class="app-logo">🎓</div>
+            <div>
+              <div style="font-size:14px;font-weight:600;">Parasha Tutor</div>
+              <div style="font-size:12px;color:var(--text-sec);">By Dev Team AI</div>
+            </div>
+            <span class="badge badge-gold" style="margin-left:auto;">OSS</span>
+          </div>
+          <div class="card-body">
+            <p>Weekly parasha study guide generator with custom learning levels, from child-friendly to advanced beit midrash.</p>
+            <div class="app-card-tags">
+              <span class="badge badge-gray">Education</span>
+              <span class="badge badge-gray">Open Source</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="text-align:center;margin-top:32px;">
+        <button class="btn btn-outline">View All 48 Apps →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Events -->
+  <section class="section section-alt">
+    <div class="container">
+      <div class="section-header">
+        <h2>Upcoming Events</h2>
+        <p>Live webinars, workshops, and interactive Torah+AI sessions</p>
+      </div>
+      <div class="grid-3">
+        <div class="card event-card">
+          <div class="event-card-img" style="background:linear-gradient(135deg,#1a3a5c 0%,#2563eb 100%);">
+            <div class="event-card-date">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              Thu Jun 12 · 7:00 PM EST
+            </div>
+          </div>
+          <div class="card-body">
+            <div style="display:flex;gap:8px;margin-bottom:8px;"><span class="badge badge-blue">Webinar</span><span class="badge badge-gray">Zoom</span></div>
+            <h3>Building a Kosher AI: Ethics in Jewish Technology</h3>
+            <p>A discussion on halachic considerations when developing AI systems for Jewish communities.</p>
+            <button class="btn btn-primary btn-sm" style="margin-top:4px;">Register Free →</button>
+          </div>
+        </div>
+        <div class="card event-card">
+          <div class="event-card-img" style="background:linear-gradient(135deg,#166534 0%,#15803d 100%);">
+            <div class="event-card-date">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              Sun Jun 22 · 2:00 PM EST
+            </div>
+          </div>
+          <div class="card-body">
+            <div style="display:flex;gap:8px;margin-bottom:8px;"><span class="badge badge-green">Workshop</span><span class="badge badge-gray">Discord</span></div>
+            <h3>LangChain + Sefaria: Build Your Own Torah Chatbot</h3>
+            <p>Hands-on workshop: connect LangChain to the Sefaria API and build a basic study assistant.</p>
+            <button class="btn btn-primary btn-sm" style="margin-top:4px;">Register →</button>
+          </div>
+        </div>
+        <div class="card event-card">
+          <div class="event-card-img" style="background:linear-gradient(135deg,#7c3aed 0%,#a855f7 100%);">
+            <div class="event-card-date">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              Fri Jul 4 · 12:00 PM EST
+            </div>
+          </div>
+          <div class="card-body">
+            <div style="display:flex;gap:8px;margin-bottom:8px;"><span class="badge badge-gold">Lecture</span><span class="badge badge-gray">YouTube Live</span></div>
+            <h3>Rambam in the Age of AI: Rationalism Meets Machine Learning</h3>
+            <p>Interactive lecture exploring how Maimonidean philosophy applies to modern AI systems.</p>
+            <button class="btn btn-primary btn-sm" style="margin-top:4px;">Remind Me →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Blog -->
+  <section class="section">
+    <div class="container">
+      <div class="section-header">
+        <h2>From the Blog</h2>
+        <p>Perspectives on AI, Torah, and the people building at their intersection</p>
+      </div>
+      <div class="grid-3">
+        <div class="card blog-card">
+          <div class="blog-card-img" style="background:linear-gradient(135deg,#eef2ff,#dbeafe);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity=".4"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          </div>
+          <div class="card-body">
+            <div class="blog-meta"><span class="badge badge-blue">Technology</span><span class="text-sec">May 28, 2025</span></div>
+            <h3>How We Built Semantic Search Over 50,000 Torah Passages</h3>
+            <p>A technical walkthrough of embedding generation, pgvector indexing, and the HNSW vs. IVFFlat tradeoff at scale.</p>
+            <div class="blog-author">
+              <div class="blog-author-avatar">DL</div>
+              <span style="font-size:13px;color:var(--text-sec);">Dev team · 8 min read</span>
+            </div>
+          </div>
+        </div>
+        <div class="card blog-card">
+          <div class="blog-card-img" style="background:linear-gradient(135deg,#fffdf5,#fef9ee);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#b5914a" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity=".5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          </div>
+          <div class="card-body">
+            <div class="blog-meta"><span class="badge badge-gold">Halacha</span><span class="text-sec">May 15, 2025</span></div>
+            <h3>Can an AI Answer a Halachic Question? A Posek's Perspective</h3>
+            <p>Rabbi Y. Feldman explores the limits and possibilities of AI-assisted halachic decisioning from a traditional framework.</p>
+            <div class="blog-author">
+              <div class="blog-author-avatar">YF</div>
+              <span style="font-size:13px;color:var(--text-sec);">Rabbi Y. Feldman · 12 min read</span>
+            </div>
+          </div>
+        </div>
+        <div class="card blog-card">
+          <div class="blog-card-img" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity=".5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+          <div class="card-body">
+            <div class="blog-meta"><span class="badge badge-green">Community</span><span class="text-sec">May 3, 2025</span></div>
+            <h3>RLHF for Torah: Teaching AI Models What "Authentic" Means</h3>
+            <p>How human feedback from scholars and learners is shaping the next generation of Torah-aligned language models.</p>
+            <div class="blog-author">
+              <div class="blog-author-avatar">MC</div>
+              <span style="font-size:13px;color:var(--text-sec);">Miriam Cohen · 6 min read</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="text-align:center;margin-top:32px;">
+        <button class="btn btn-outline">Read All Articles →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Join CTA -->
+  <section class="join-cta">
+    <div class="container">
+      <h2>Join the community building AI for Torah</h2>
+      <p>Scholars, developers, and educators working together to honor tradition through technology.</p>
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+        <button class="btn btn-gold btn-lg">Create Free Account</button>
+        <button class="btn btn-outline-white btn-lg">Join Discord</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:32px;height:32px;background:var(--accent);border-radius:7px;display:flex;align-items:center;justify-content:center;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            </div>
+            <span style="font-family:'Playfair Display',serif;font-size:18px;color:#fff;">AI Torah</span>
+          </div>
+          <p>A hub for scholars and developers at the intersection of Jewish wisdom and artificial intelligence.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Product</h4>
+          <ul>
+            <li><a href="#">Study Partner</a></li>
+            <li><a href="#">Torah Search</a></li>
+            <li><a href="#">App Directory</a></li>
+            <li><a href="#">Marketplace</a></li>
+            <li><a href="#">Pricing</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Community</h4>
+          <ul>
+            <li><a href="#">Forum</a></li>
+            <li><a href="#">Discord</a></li>
+            <li><a href="#">Events</a></li>
+            <li><a href="#">Blog</a></li>
+            <li><a href="#">Resources</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Company</h4>
+          <ul>
+            <li><a href="#">About</a></li>
+            <li><a href="#">Contact</a></li>
+            <li><a href="#">Privacy</a></li>
+            <li><a href="#">Terms</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© 2025 AI Torah. All rights reserved.</span>
+        <div class="footer-social">
+          <a href="#" title="Twitter/X"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></a>
+          <a href="#" title="Discord"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.015.043.033.055a19.946 19.946 0 0 0 6.073 3.103.077.077 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.103.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg></a>
+          <a href="#" title="GitHub"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg></a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+</div><!-- /page-home -->
+
+<!-- ════════════════════════════════════════════════════
+     PAGE 2 — STUDY PARTNER
+════════════════════════════════════════════════════ -->
+<div id="page-study" class="page">
+  <!-- App navbar -->
+  <nav class="navbar">
+    <div class="container navbar-inner">
+      <a class="nav-logo" href="#"><div class="nav-logo-mark"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>AI Torah</a>
+      <div class="nav-actions">
+        <button class="btn btn-ghost btn-sm"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></button>
+        <div class="avatar">HL</div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="app-shell">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <div class="nav-logo-mark" style="width:28px;height:28px;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
+        AI Torah
+      </div>
+      <nav class="sidebar-nav">
+        <a class="active"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Study Partner</a>
+        <a><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>Torah Search</a>
+        <a><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Community</a>
+        <div class="sidebar-divider"></div>
+        <a><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Marketplace</a>
+        <a><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Events</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="sidebar-user">
+          <div class="avatar" style="width:30px;height:30px;font-size:12px;">HL</div>
+          <div class="sidebar-user-info">
+            <div class="name">Haim Lubin</div>
+            <div class="role">Member</div>
+          </div>
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-sec)"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41"/><path d="M5.34 18.66l-1.41 1.41"/><path d="M1 12H3"/><path d="M21 12h2"/><path d="M18.66 18.66l1.41 1.41"/><path d="M4.93 4.93l1.41 1.41"/><path d="M12 1v2"/><path d="M12 21v2"/></svg>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <div class="main-area">
+      <div class="main-content" style="display:flex;flex-direction:column;height:100%;padding:20px 24px;">
+        <div class="study-layout" style="flex:1;min-height:0;">
+
+          <!-- Session list -->
+          <div class="session-list">
+            <h3>Sessions</h3>
+            <button class="btn btn-outline new-session-btn btn-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              New Session
+            </button>
+            <div class="session-item active">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary);flex-shrink:0;margin-top:2px;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              <div>
+                <div class="session-item-title">Honesty in business (Talmud)</div>
+                <div class="session-item-date">Today</div>
+              </div>
+            </div>
+            <div class="session-item">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-sec);flex-shrink:0;margin-top:2px;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              <div>
+                <div class="session-item-title">Shabbat candle lighting times</div>
+                <div class="session-item-date">Yesterday</div>
+              </div>
+            </div>
+            <div class="session-item">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-sec);flex-shrink:0;margin-top:2px;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              <div>
+                <div class="session-item-title">Parasha Lech Lecha — key themes</div>
+                <div class="session-item-date">2 days ago</div>
+              </div>
+            </div>
+            <div class="session-item">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-sec);flex-shrink:0;margin-top:2px;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              <div>
+                <div class="session-item-title">Tzedakah obligations — sources</div>
+                <div class="session-item-date">Jun 1</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Chat -->
+          <div class="chat-area">
+            <div class="chat-messages">
+              <!-- AI welcome -->
+              <div class="msg msg-ai">
+                <div class="msg-avatar">א</div>
+                <div>
+                  <div class="msg-bubble">Shalom! I'm your AI Torah study partner. Ask me anything about Torah, Talmud, Halacha, or Jewish philosophy — I'll find relevant sources and walk through them with you.</div>
+                </div>
+              </div>
+              <!-- User -->
+              <div class="msg msg-user">
+                <div class="msg-avatar">HL</div>
+                <div>
+                  <div class="msg-bubble">What does the Talmud say about honesty in business dealings?</div>
+                </div>
+              </div>
+              <!-- AI response -->
+              <div class="msg msg-ai">
+                <div class="msg-avatar">א</div>
+                <div>
+                  <div class="msg-bubble">
+                    <p>The Talmud addresses business honesty extensively, with the foundational principle being <em>emet</em> (truth) as a core value in all commercial dealings.</p>
+                    <p style="margin-top:10px;">In <strong>Bava Metzia 49a</strong>, the Talmud establishes that verbal commitments in commerce carry moral weight — "one who goes back on his word, even if not legally binding, is considered morally deficient." This creates a standard higher than what secular contract law requires.</p>
+                    <p style="margin-top:10px;">The <strong>Chafetz Chaim</strong> in his commentary extends this to prohibit any misleading impression, even through technically true statements — what we today call "half-truths." The concept of <em>geneivat da'at</em> (literally "stealing the mind") covers deception that doesn't involve lying outright.</p>
+                    <details class="msg-sources">
+                      <summary>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                        3 sources used
+                      </summary>
+                      <div class="source-card" style="margin-top:8px;">
+                        <div class="source-card-ref">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                          Bava Metzia 49a · Gemara · Similarity 96%
+                        </div>
+                        <div class="hebrew">אָמַר רַבִּי יוֹחָנָן: לֹא הֶחֱזִיר דָּבָר שֶׁבְּדִבּוּר</div>
+                        <div class="english">"Rabbi Yochanan said: One who reneges on a verbal commitment has not fulfilled his obligation."</div>
+                      </div>
+                      <div class="source-card">
+                        <div class="source-card-ref">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                          Shabbat 55a · Gemara · Similarity 91%
+                        </div>
+                        <div class="hebrew">חוֹתָמוֹ שֶׁל הַקָּדוֹשׁ בָּרוּךְ הוּא אֱמֶת</div>
+                        <div class="english">"The seal of the Holy One, Blessed be He, is truth."</div>
+                      </div>
+                    </details>
+                  </div>
+                </div>
+              </div>
+              <!-- Typing indicator -->
+              <div class="msg msg-ai">
+                <div class="msg-avatar">א</div>
+                <div>
+                  <div class="msg-bubble" style="padding:8px 16px;">
+                    <div class="typing-indicator">
+                      <span></span><span></span><span></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Input -->
+            <div class="chat-input-area">
+              <div class="chat-input-box">
+                <textarea rows="1" placeholder="Ask about any Torah text or topic..."></textarea>
+                <button class="chat-send">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                </button>
+              </div>
+              <div class="chat-hints">
+                <div class="chat-hint">What are the 613 commandments?</div>
+                <div class="chat-hint">Explain Shabbat laws</div>
+                <div class="chat-hint">Sources on prayer</div>
+                <div class="chat-hint">Kashrut overview</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div><!-- /page-study -->
+
+<!-- ════════════════════════════════════════════════════
+     PAGE 3 — TORAH SEARCH
+════════════════════════════════════════════════════ -->
+<div id="page-search" class="page">
+  <nav class="navbar">
+    <div class="container navbar-inner">
+      <a class="nav-logo" href="#"><div class="nav-logo-mark"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>AI Torah</a>
+      <div class="nav-actions"><div class="avatar">HL</div></div>
+    </div>
+  </nav>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-logo"><div class="nav-logo-mark" style="width:28px;height:28px;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>AI Torah</div>
+      <nav class="sidebar-nav">
+        <a><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Study Partner</a>
+        <a class="active"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>Torah Search</a>
+        <a><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Community</a>
+        <div class="sidebar-divider"></div>
+        <a><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Marketplace</a>
+        <a><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Events</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="sidebar-user"><div class="avatar" style="width:30px;height:30px;font-size:12px;">HL</div><div class="sidebar-user-info"><div class="name">Haim Lubin</div><div class="role">Member</div></div></div>
+      </div>
+    </aside>
+    <div class="main-area">
+      <div class="main-header">
+        <h1>Torah Search</h1>
+        <span style="font-size:13px;color:var(--text-sec);">12,400 passages indexed · pgvector semantic search</span>
+      </div>
+      <div class="main-content">
+        <div class="search-layout">
+          <div class="search-header">
+            <div class="search-bar">
+              <input type="text" value="honesty in business dealings" placeholder="Search by meaning, not keywords...">
+              <button>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                Search
+              </button>
+            </div>
+            <div class="search-filters">
+              <div class="filter-pill active">All Texts</div>
+              <div class="filter-pill">Tanakh</div>
+              <div class="filter-pill">Mishnah</div>
+              <div class="filter-pill">Gemara</div>
+              <div class="filter-pill">Rishonim</div>
+              <div class="filter-pill">Acharonim</div>
+            </div>
+          </div>
+
+          <div class="search-results-count">Showing 12 results for <strong>"honesty in business dealings"</strong></div>
+
+          <div class="result-card">
+            <div class="result-header">
+              <div>
+                <div class="result-ref">Bava Metzia 49a</div>
+                <div style="font-size:12px;color:var(--text-sec);margin-top:2px;">Gemara · Talmud Bavli</div>
+              </div>
+              <span class="result-score">96% match</span>
+            </div>
+            <div class="hebrew">כָּל הַחוֹזֵר בּוֹ, אֵין רוּחַ חֲכָמִים נוֹחָה הֵימֶנּוּ</div>
+            <div class="english">"Whoever retracts [from a verbal commitment in business], the spirit of the Sages is not pleased with him."</div>
+            <div class="result-actions">
+              <span class="result-source-tag">Gemara</span>
+              <button class="btn btn-ghost btn-sm" style="font-size:12px;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                Ask Study Partner
+              </button>
+              <button class="btn btn-ghost btn-sm" style="font-size:12px;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                View on Sefaria
+              </button>
+            </div>
+          </div>
+
+          <div class="result-card">
+            <div class="result-header">
+              <div>
+                <div class="result-ref">Shabbat 55a</div>
+                <div style="font-size:12px;color:var(--text-sec);margin-top:2px;">Gemara · Talmud Bavli</div>
+              </div>
+              <span class="result-score">91% match</span>
+            </div>
+            <div class="hebrew">חוֹתָמוֹ שֶׁל הַקָּדוֹשׁ בָּרוּךְ הוּא אֱמֶת</div>
+            <div class="english">"The seal of the Holy One, Blessed be He, is truth (emet)."</div>
+            <div class="result-actions">
+              <span class="result-source-tag">Gemara</span>
+              <button class="btn btn-ghost btn-sm" style="font-size:12px;"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Ask Study Partner</button>
+              <button class="btn btn-ghost btn-sm" style="font-size:12px;"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>View on Sefaria</button>
+            </div>
+          </div>
+
+          <div class="result-card">
+            <div class="result-header">
+              <div>
+                <div class="result-ref">Mishlei 23:23</div>
+                <div style="font-size:12px;color:var(--text-sec);margin-top:2px;">Tanakh · Ketuvim</div>
+              </div>
+              <span class="result-score">88% match</span>
+            </div>
+            <div class="hebrew">אֱמֶת קְנֵה וְאַל-תִּמְכֹּר חָכְמָה וּמוּסָר וּבִינָה</div>
+            <div class="english">"Buy truth and do not sell it — also wisdom, discipline and understanding."</div>
+            <div class="result-actions">
+              <span class="result-source-tag">Tanakh</span>
+              <button class="btn btn-ghost btn-sm" style="font-size:12px;"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Ask Study Partner</button>
+              <button class="btn btn-ghost btn-sm" style="font-size:12px;"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>View on Sefaria</button>
+            </div>
+          </div>
+
+          <div style="text-align:center;padding:20px 0;color:var(--text-sec);font-size:13px;">Showing 3 of 12 results · <a href="#" style="color:var(--primary-light);">Load more</a></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div><!-- /page-search -->
+
+<!-- ════════════════════════════════════════════════════
+     PAGE 4 — APP DIRECTORY
+════════════════════════════════════════════════════ -->
+<div id="page-apps" class="page">
+  <nav class="navbar">
+    <div class="container navbar-inner">
+      <a class="nav-logo" href="#"><div class="nav-logo-mark"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>AI Torah</a>
+      <div class="nav-actions"><button class="btn btn-gold btn-sm">Submit Your App</button><div class="avatar">HL</div></div>
+    </div>
+  </nav>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-logo"><div class="nav-logo-mark" style="width:28px;height:28px;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>AI Torah</div>
+      <nav class="sidebar-nav">
+        <a><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Study Partner</a>
+        <a><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>Torah Search</a>
+        <a><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Community</a>
+        <div class="sidebar-divider"></div>
+        <a class="active"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>App Directory</a>
+        <a><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Events</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="sidebar-user"><div class="avatar" style="width:30px;height:30px;font-size:12px;">HL</div><div class="sidebar-user-info"><div class="name">Haim Lubin</div><div class="role">Member</div></div></div>
+      </div>
+    </aside>
+    <div class="main-area">
+      <div class="main-header">
+        <h1>App Directory</h1>
+        <span style="font-size:13px;color:var(--text-sec);">48 apps listed</span>
+      </div>
+      <div class="main-content">
+        <div class="dir-layout">
+          <!-- Filter sidebar -->
+          <div class="dir-sidebar">
+            <input class="dir-search" type="text" placeholder="Search apps...">
+            <h3>Category</h3>
+            <label class="filter-check"><input type="checkbox" checked> Study Tools</label>
+            <label class="filter-check"><input type="checkbox"> Halacha</label>
+            <label class="filter-check"><input type="checkbox"> Education</label>
+            <label class="filter-check"><input type="checkbox"> Datasets</label>
+            <label class="filter-check"><input type="checkbox"> APIs & Tools</label>
+            <label class="filter-check"><input type="checkbox"> Creative</label>
+            <h3>Status</h3>
+            <label class="filter-check"><input type="checkbox" checked> Live</label>
+            <label class="filter-check"><input type="checkbox" checked> Beta</label>
+            <label class="filter-check"><input type="checkbox" checked> Open Source</label>
+          </div>
+          <!-- Grid -->
+          <div class="dir-main">
+            <div class="dir-main-header">
+              <h2>All Apps <span style="color:var(--text-sec);font-weight:400;font-size:14px;">— 48 results</span></h2>
+              <select style="border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:13px;background:var(--surface);color:var(--text);outline:none;">
+                <option>Sort: Featured</option>
+                <option>Sort: Newest</option>
+                <option>Sort: A–Z</option>
+              </select>
+            </div>
+            <div class="dir-grid">
+              <div class="dir-card">
+                <div class="dir-card-top"><div class="dir-card-logo">📖</div><span class="badge badge-green">Live</span></div>
+                <h3>Sefaria GPT</h3>
+                <p>Ask questions over Sefaria's full library with GPT-4. Citation-level accuracy with linked source references.</p>
+                <div class="dir-card-tags"><span>Sefaria</span><span>GPT-4</span><span>Study</span></div>
+              </div>
+              <div class="dir-card">
+                <div class="dir-card-top"><div class="dir-card-logo">⚖️</div><span class="badge badge-blue">Beta</span></div>
+                <h3>HalachaBot</h3>
+                <p>Halachic guidance sourced from Shulchan Aruch and contemporary poskim. Educational only.</p>
+                <div class="dir-card-tags"><span>Halacha</span><span>Claude</span><span>LangChain</span></div>
+              </div>
+              <div class="dir-card">
+                <div class="dir-card-top"><div class="dir-card-logo">🎓</div><span class="badge badge-gold">OSS</span></div>
+                <h3>Parasha Tutor</h3>
+                <p>Weekly parasha study guide generator with custom levels from child-friendly to advanced beit midrash.</p>
+                <div class="dir-card-tags"><span>Education</span><span>Open Source</span></div>
+              </div>
+              <div class="dir-card">
+                <div class="dir-card-top"><div class="dir-card-logo">🔍</div><span class="badge badge-green">Live</span></div>
+                <h3>Talmud Semantic Search</h3>
+                <p>Search all of Shas by semantic meaning. Built on pgvector with Aramaic+Hebrew support.</p>
+                <div class="dir-card-tags"><span>pgvector</span><span>Talmud</span><span>Search</span></div>
+              </div>
+              <div class="dir-card">
+                <div class="dir-card-top"><div class="dir-card-logo">🎨</div><span class="badge badge-blue">Beta</span></div>
+                <h3>Torah Art Generator</h3>
+                <p>Generate illustrated midrash scenes and parasha artwork using DALL-E with halachic image guidelines.</p>
+                <div class="dir-card-tags"><span>DALL-E</span><span>Art</span><span>Creative</span></div>
+              </div>
+              <div class="dir-card">
+                <div class="dir-card-top"><div class="dir-card-logo">📊</div><span class="badge badge-gold">OSS</span></div>
+                <h3>Torah Text Embeddings</h3>
+                <p>Open dataset: 50k Torah passage embeddings (OpenAI ada-002). Plug into your own RAG pipeline.</p>
+                <div class="dir-card-tags"><span>Dataset</span><span>Embeddings</span><span>RAG</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div><!-- /page-apps -->
+
+<script>
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('#mockup-bar button').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// Auto-resize chat textarea
+document.querySelectorAll('.chat-input-box textarea').forEach(ta => {
+  ta.addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+  });
+});
+
+// Expand study partner chat details on click
+document.querySelectorAll('.msg-sources').forEach(d => {
+  d.addEventListener('toggle', function() {});
+});
+</script>
+</body>
+</html>
