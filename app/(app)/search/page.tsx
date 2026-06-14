@@ -1,5 +1,8 @@
+import type { Metadata } from 'next'
 import { SearchInterface } from '@/components/search/SearchInterface'
 import { BuildingBanner } from '@/components/ui/BuildingBanner'
+
+export const metadata: Metadata = { title: 'Torah Search — AI Torah' }
 
 export default function SearchPage() {
   return (

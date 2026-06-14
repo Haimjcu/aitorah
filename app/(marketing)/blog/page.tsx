@@ -1,4 +1,7 @@
+import type { Metadata } from 'next'
 import { BuildingBanner } from '@/components/ui/BuildingBanner'
+
+export const metadata: Metadata = { title: 'Blog — AI Torah' }
 
 export default function BlogPage() {
   return (

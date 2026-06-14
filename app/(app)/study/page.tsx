@@ -1,5 +1,8 @@
+import type { Metadata } from 'next'
 import { ChatInterface } from '@/components/study/ChatInterface'
 import { BuildingBanner } from '@/components/ui/BuildingBanner'
+
+export const metadata: Metadata = { title: 'Study Partner — AI Torah' }
 
 export default function StudyPage() {
   return (
