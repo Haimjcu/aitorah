@@ -1,6 +1,4 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
-import { BuildingBanner } from '@/components/ui/BuildingBanner'
 
 export const metadata: Metadata = { title: 'Community — AI Torah' }
 

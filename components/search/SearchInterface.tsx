@@ -9,35 +9,34 @@ type Result = {
   similarity: number
   hebrew: string
   english: string
+  sefaria_url?: string
 }
-
-const MOCK_RESULTS: Result[] = [
-  { ref: 'Bava Metzia 49a', type: 'Gemara · Talmud Bavli', source: 'Gemara', similarity: 96, hebrew: 'כָּל הַחוֹזֵר בּוֹ, אֵין רוּחַ חֲכָמִים נוֹחָה הֵימֶנּוּ', english: '"Whoever retracts [from a verbal commitment in business], the spirit of the Sages is not pleased with him."' },
-  { ref: 'Shabbat 55a', type: 'Gemara · Talmud Bavli', source: 'Gemara', similarity: 91, hebrew: 'חוֹתָמוֹ שֶׁל הַקָּדוֹשׁ בָּרוּךְ הוּא אֱמֶת', english: '"The seal of the Holy One, Blessed be He, is truth (emet)."' },
-  { ref: 'Mishlei 23:23', type: 'Tanakh · Ketuvim', source: 'Tanakh', similarity: 88, hebrew: 'אֱמֶת קְנֵה וְאַל-תִּמְכֹּר חָכְמָה וּמוּסָר וּבִינָה', english: '"Buy truth and do not sell it — also wisdom, discipline and understanding."' },
-]
 
 const FILTERS = ['All Texts', 'Tanakh', 'Mishnah', 'Gemara', 'Rishonim', 'Acharonim']
 
 export function SearchInterface() {
-  const [query, setQuery] = useState('honesty in business dealings')
+  const [query, setQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState('All Texts')
-  const [results, setResults] = useState<Result[]>(MOCK_RESULTS)
+  const [results, setResults] = useState<Result[]>([])
   const [isSearching, setIsSearching] = useState(false)
+  const [hasSearched, setHasSearched] = useState(false)
+  const [total, setTotal] = useState(0)
 
   const handleSearch = async () => {
     if (!query.trim()) return
     setIsSearching(true)
+    setHasSearched(true)
     try {
-      const params = new URLSearchParams({ q: query, limit: '10' })
+      const params = new URLSearchParams({ q: query, limit: '20' })
       if (activeFilter !== 'All Texts') params.set('source', activeFilter.toLowerCase())
       const res = await fetch(`/api/search?${params}`)
       if (res.ok) {
         const data = await res.json()
-        setResults(data.results ?? MOCK_RESULTS)
+        setResults(data.results ?? [])
+        setTotal(data.total ?? 0)
       }
     } catch {
-      // keep mock data on error
+      setResults([])
     } finally {
       setIsSearching(false)
     }
@@ -52,7 +51,7 @@ export function SearchInterface() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-          placeholder="Search by meaning, not keywords..."
+          placeholder="Search Torah texts — try a topic, reference, or question..."
           className="flex-1 border-none outline-none px-4 py-3 text-sm font-sans"
         />
         <button
@@ -61,7 +60,7 @@ export function SearchInterface() {
           className="flex items-center gap-1.5 px-5 bg-[var(--primary)] text-white text-sm font-medium hover:bg-[var(--primary-light)] disabled:opacity-50 transition-all"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-          Search
+          {isSearching ? 'Searching...' : 'Search'}
         </button>
       </div>
 
@@ -70,7 +69,7 @@ export function SearchInterface() {
         {FILTERS.map((f) => (
           <button
             key={f}
-            onClick={() => setActiveFilter(f)}
+            onClick={() => { setActiveFilter(f); if (hasSearched) setTimeout(handleSearch, 0) }}
             className={`px-4 py-1.5 rounded-full text-sm border transition-all ${activeFilter === f ? 'bg-[var(--primary)] text-white border-[var(--primary)]' : 'bg-white border-[var(--border)] text-[var(--text-sec)] hover:border-[var(--primary)] hover:text-[var(--primary)]'}`}
           >
             {f}
@@ -78,9 +77,32 @@ export function SearchInterface() {
         ))}
       </div>
 
-      <p className="text-sm text-[var(--text-sec)] mb-4">
-        Showing {results.length} results for <strong>"{query}"</strong>
-      </p>
+      {!hasSearched && (
+        <div className="text-center py-16 text-[var(--text-sec)]">
+          <p className="text-sm">Search across the Sefaria library — Tanakh, Talmud, Midrash, Halakhah, and more.</p>
+          <p className="text-xs mt-2">Powered by Sefaria&apos;s ElasticSearch with Hebrew morphological analysis.</p>
+        </div>
+      )}
+
+      {hasSearched && !isSearching && (
+        <p className="text-sm text-[var(--text-sec)] mb-4">
+          {results.length > 0
+            ? <>Showing {results.length} of {total} results for <strong>&quot;{query}&quot;</strong></>
+            : <>No results found for <strong>&quot;{query}&quot;</strong>. Try a different search term.</>
+          }
+        </p>
+      )}
+
+      {isSearching && (
+        <div className="text-center py-12">
+          <div className="flex gap-1 justify-center mb-2">
+            {[0, 1, 2].map((i) => (
+              <span key={i} className="w-2 h-2 rounded-full bg-[var(--primary-light)] animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
+            ))}
+          </div>
+          <p className="text-sm text-[var(--text-sec)]">Searching Sefaria...</p>
+        </div>
+      )}
 
       {/* Results */}
       {results.map((r) => (
@@ -90,28 +112,24 @@ export function SearchInterface() {
               <div className="font-serif font-bold text-sm text-[var(--primary)]">{r.ref}</div>
               <div className="text-xs text-[var(--text-sec)] mt-0.5">{r.type}</div>
             </div>
-            <span className="text-xs font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded">{r.similarity}% match</span>
+            <span className="text-xs font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded">{r.similarity}% relevance</span>
           </div>
-          <div className="hebrew text-lg mb-2 leading-loose">{r.hebrew}</div>
-          <div className="text-sm text-[var(--text-sec)] leading-relaxed mb-3">{r.english}</div>
+          {r.hebrew && <div className="hebrew text-lg mb-2 leading-loose">{r.hebrew}</div>}
+          {r.english && <div className="text-sm text-[var(--text-sec)] leading-relaxed mb-3">{r.english}</div>}
           <div className="flex gap-2">
             <span className="text-xs bg-[var(--surface-alt)] text-[var(--text-sec)] px-2 py-1 rounded">{r.source}</span>
-            <button className="flex items-center gap-1 px-3 py-1 text-xs text-[var(--text-sec)] hover:bg-[var(--surface-alt)] rounded transition-all">
-              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-              Ask Study Partner
-            </button>
-            <button className="flex items-center gap-1 px-3 py-1 text-xs text-[var(--text-sec)] hover:bg-[var(--surface-alt)] rounded transition-all">
+            <a
+              href={r.sefaria_url ?? `https://www.sefaria.org/${r.ref.replace(/ /g, '_')}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 px-3 py-1 text-xs text-[var(--text-sec)] hover:bg-[var(--surface-alt)] rounded transition-all"
+            >
               <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
               View on Sefaria
-            </button>
+            </a>
           </div>
         </div>
       ))}
-
-      <div className="text-center py-5 text-sm text-[var(--text-sec)]">
-        Showing {results.length} of 12 results ·{' '}
-        <button className="text-[var(--primary-light)] hover:underline">Load more</button>
-      </div>
     </div>
   )
 }

@@ -1,4 +1,24 @@
-// Drizzle ORM schema — wire up once DATABASE_URL is set in Railway
+import { pgTable, text, timestamp, integer, uuid, index, real } from 'drizzle-orm/pg-core'
+
+export const qaPairs = pgTable('qa_pairs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  question: text('question').notNull(),
+  questionNormalized: text('question_normalized').notNull(),
+  answerMarkdown: text('answer_markdown').notNull(),
+  sourceRefs: text('source_refs').array().notNull(),
+  topics: text('topics').array(),
+  categories: text('categories').array(),
+  language: text('language').default('en'),
+  viewCount: integer('view_count').default(0),
+  slug: text('slug').unique(),
+  similarity: real('similarity'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index('idx_qa_slug').on(table.slug),
+  index('idx_qa_created').on(table.createdAt),
+])
+
+// Legacy TypeScript interfaces (pre-Drizzle) — kept for backward compatibility
 
 export type UserRole = 'member' | 'creator' | 'admin'
 export type ListingStatus = 'draft' | 'active' | 'archived'
@@ -25,7 +45,6 @@ export interface TorahText {
   text_hebrew: string | null
   text_english: string | null
   reference: string
-  // embedding: Vector(1536) — stored as float[] in pg
   created_at: Date
 }
 
