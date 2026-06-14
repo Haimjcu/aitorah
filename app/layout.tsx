@@ -1,9 +1,7 @@
 import type { Metadata } from 'next'
 import Script from 'next/script'
-import { Suspense } from 'react'
 import { Inter, Playfair_Display, Noto_Sans_Hebrew, JetBrains_Mono } from 'next/font/google'
 import { Footer } from '@/components/layout/Footer'
-import { GoogleAnalytics } from '@/components/GoogleAnalytics'
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
@@ -37,9 +35,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             style={{ display: 'none', visibility: 'hidden' }}
           />
         </noscript>
-        <Suspense>
-          <GoogleAnalytics />
-        </Suspense>
         {children}
         <Footer />
       </body>
