@@ -97,8 +97,8 @@ export default function ContactPage() {
             className="w-14 h-14 rounded-full object-cover flex-shrink-0"
           />
           <div>
-            <h3 className="font-semibold text-base mb-1">Haim Lubin</h3>
-            <p className="text-sm text-[var(--text-sec)] mb-2">Developer & Torah enthusiast</p>
+            <h3 className="font-semibold text-base mb-1">Rabbi Haim Lubin</h3>
+            <p className="text-sm text-[var(--text-sec)] mb-2">Rabbi & Developer</p>
             <p className="text-sm text-[var(--text-sec)] leading-relaxed mb-3">
               I started AI Torah to explore what becomes possible when you bring modern AI capabilities to traditional Jewish texts and scholarship. This project is a labor of love, and I'm looking for others who share the vision.
             </p>

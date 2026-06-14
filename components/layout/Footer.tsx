@@ -8,7 +8,7 @@ export function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-10">
           <div className="col-span-2 md:col-span-1">
             <div className="flex items-center gap-2.5 mb-3 text-white">
-              <LogoMark size={28} />
+              <LogoMark size={28} variant="light" />
               <span className="font-serif text-lg">AI Torah</span>
             </div>
             <p className="text-sm text-white/50 max-w-[260px] leading-relaxed">

@@ -27,19 +27,29 @@ export default function HomePage() {
     <div className="bg-[var(--bg)]">
       {/* Hero */}
       <section
-        className="py-24 text-white"
-        style={{
-          background: 'var(--primary)',
-          backgroundImage: `radial-gradient(ellipse at 70% 50%, rgba(181,145,74,.15) 0%, transparent 60%), url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23b5914a' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-        }}
+        className="py-24 text-white relative overflow-hidden"
+        style={{ background: 'var(--primary)' }}
       >
-        <div className="max-w-7xl mx-auto px-6">
+        <div
+          className="absolute inset-0 bg-cover bg-center md:bg-center bg-[center_top]"
+          style={{
+            backgroundImage: `url('/torah-scroll-bg.png')`,
+            opacity: 0.12,
+          }}
+        />
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundImage: `radial-gradient(ellipse at 70% 50%, rgba(181,145,74,.15) 0%, transparent 60%)`,
+          }}
+        />
+        <div className="max-w-7xl mx-auto px-6 relative z-10">
           <div className="inline-flex items-center gap-2 bg-[rgba(181,145,74,.2)] border border-[rgba(181,145,74,.4)] text-[var(--accent-light)] px-4 py-1.5 rounded-full text-sm font-medium mb-6">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-            Now in open beta — join the community
+            We're bulding something new — get involved!
           </div>
           <h1 className="font-serif text-4xl md:text-6xl font-bold text-white mb-5 max-w-2xl leading-tight">
-            Explore Torah Through<br />Artificial Intelligence
+            Explore Torah<br />With The Help Of<br />Artificial Intelligence
           </h1>
           <p className="text-xl text-white/75 max-w-[560px] mb-9 leading-relaxed">
             A living community of scholars and developers building AI tools rooted in authentic tradition. Ask questions, study sources, and connect with others doing the same.
