@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { HeroChat } from '@/components/home/HeroChat'
 
 const featuredApps = [
   { emoji: '📖', name: 'Sefaria GPT', creator: 'Yosef Klein', status: 'Live', statusColor: 'badge-green', desc: "Ask questions over Sefaria's full library using GPT-4 with citation-level accuracy and linked source references.", tags: ['Sefaria', 'GPT-4', 'Study'] },
@@ -27,7 +28,7 @@ export default function HomePage() {
     <div className="bg-[var(--bg)]">
       {/* Hero */}
       <section
-        className="py-24 text-white relative overflow-hidden"
+        className="py-12 md:py-24 text-white relative overflow-hidden"
         style={{ background: 'var(--primary)' }}
       >
         <div
@@ -54,14 +55,7 @@ export default function HomePage() {
           <p className="text-xl text-white/75 max-w-[560px] mb-9 leading-relaxed">
             A living community of scholars and developers building AI tools rooted in authentic tradition. Ask questions, study sources, and connect with others doing the same.
           </p>
-          <div className="flex flex-wrap gap-3">
-            <Link href="/study" className="px-7 py-4 rounded-lg bg-[var(--accent)] text-white font-medium text-lg hover:bg-[var(--accent-dark)] transition-all">
-              Start Studying Free
-            </Link>
-            <Link href="/apps" className="px-7 py-4 rounded-lg border border-white/50 text-white font-medium text-lg hover:bg-white/10 transition-all">
-              Explore Apps →
-            </Link>
-          </div>
+          <HeroChat />
           <div className="flex flex-wrap gap-10 mt-16 pt-10 border-t border-white/12">
             {[['12,000+', 'Torah texts indexed'], ['340+', 'Community members'], ['48', 'AI apps in directory'], ['24', 'Events hosted']].map(([num, label]) => (
               <div key={label}>

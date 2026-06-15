@@ -3,12 +3,16 @@ import Anthropic from '@anthropic-ai/sdk'
 import { retrieve, formatSourcesForPrompt, sourcesToClientFormat } from '@/lib/rag/retrieval'
 import { buildStudyPartnerSystemPrompt } from '@/lib/ai/prompts'
 import { saveQaPair, findSimilarQuestion } from '@/lib/db/qa'
+import { checkRateLimit } from '@/lib/ratelimit'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 const hasDb = !!process.env.DATABASE_URL
 
 export async function POST(req: NextRequest) {
   try {
+    const rateLimited = await checkRateLimit(req)
+    if (rateLimited) return rateLimited
+
     const { messages } = await req.json()
     if (!Array.isArray(messages) || messages.length === 0) {
       return Response.json({ error: 'Messages required' }, { status: 400 })
@@ -42,7 +46,7 @@ export async function POST(req: NextRequest) {
 
     const stream = await client.messages.stream({
       model: 'claude-sonnet-4-6',
-      max_tokens: 1024,
+      max_tokens: 2048,
       system: systemPrompt,
       messages: messages
         .filter((m: { role: string; content: string }) => m.role === 'user' || m.role === 'assistant')

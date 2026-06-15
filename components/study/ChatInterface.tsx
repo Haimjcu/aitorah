@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 
 type Source = { ref: string; type: string; similarity: number; hebrew: string; english: string }
 
@@ -13,6 +14,8 @@ type Message = {
 const HINTS = ['What are the 613 commandments?', 'Explain Shabbat laws', 'What does Genesis 1:1 mean?', 'What does the Talmud say about honesty?']
 
 export function ChatInterface() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
@@ -23,12 +26,13 @@ export function ChatInterface() {
   const [isStreaming, setIsStreaming] = useState(false)
   const [openSources, setOpenSources] = useState<number[]>([])
   const scrollRef = useRef<HTMLDivElement>(null)
+  const initialQuerySent = useRef(false)
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
   }, [messages])
 
-  const sendMessage = async (text: string) => {
+  const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || isStreaming) return
     const userMsg: Message = { role: 'user', content: text }
     setMessages((m) => [...m, userMsg])
@@ -41,6 +45,10 @@ export function ChatInterface() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: [...messages, userMsg].map(({ role, content }) => ({ role, content })) }),
       })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.error ?? 'Something went wrong. Please try again.')
+      }
       if (!res.body) throw new Error('No stream')
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
@@ -85,12 +93,22 @@ export function ChatInterface() {
           return copy
         })
       }
-    } catch {
-      setMessages((m) => [...m, { role: 'assistant', content: 'Sorry, something went wrong. Please try again.' }])
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Sorry, something went wrong. Please try again.'
+      setMessages((m) => [...m, { role: 'assistant', content: msg }])
     } finally {
       setIsStreaming(false)
     }
-  }
+  }, [messages])
+
+  useEffect(() => {
+    const q = searchParams.get('q')
+    if (q && !initialQuerySent.current) {
+      initialQuerySent.current = true
+      router.replace('/study', { scroll: false })
+      sendMessage(q)
+    }
+  }, [searchParams, router, sendMessage])
 
   return (
     <div className="flex gap-6 h-full">

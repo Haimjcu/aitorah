@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { Suspense } from 'react'
 import { ChatInterface } from '@/components/study/ChatInterface'
 import { AppPageHeader } from '@/components/layout/AppPageHeader'
 
@@ -14,7 +15,9 @@ export default function StudyPage() {
         <div className="w-8 h-8 rounded-full bg-[var(--primary)] text-white flex items-center justify-center text-xs font-semibold">HL</div>
       </AppPageHeader>
       <div className="flex-1 overflow-hidden p-6">
-        <ChatInterface />
+        <Suspense>
+          <ChatInterface />
+        </Suspense>
       </div>
     </div>
   )
