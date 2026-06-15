@@ -84,24 +84,37 @@ git push origin main
 
 Railway auto-deploys on push to `main`. Monitor the deploy in the Railway dashboard.
 
-### 3.3 Run database migration
+### 3.3 Create PostgreSQL on Railway
 
-The `qa_pairs` table must exist in PostgreSQL before the app can cache Q&A pairs.
+1. Open the `ai-torah` project in the Railway dashboard
+2. Click **+ New** → **Database** → **Add PostgreSQL**
+3. Railway provisions the database and exposes a `DATABASE_URL` variable
+4. Link it to the web service: go to your `aitorah-web` service → **Variables** → **Add Reference Variable** → select `DATABASE_URL` from the PostgreSQL service
+5. Railway will redeploy the web service with the new variable
 
-**Option A — Drizzle Kit (recommended)**
+Alternatively, from the CLI:
+```bash
+railway add --plugin postgresql
+```
 
-Connect to your Railway PostgreSQL and run:
+### 3.4 Run database migration
+
+The `qa_pairs` table must exist before the app can cache Q&A pairs.
+
+**Option A — Manual SQL via Railway's Query tab (simplest)**
+
+1. Open the PostgreSQL service in Railway dashboard
+2. Go to the **Data** tab → **Query**
+3. Paste and run the contents of `drizzle/0000_fuzzy_tombstone.sql`:
+
+**Option B — Drizzle Kit from local machine**
+
+Copy `DATABASE_URL` from Railway dashboard (PostgreSQL service → **Connect** tab → **Public URL**), then run:
 ```bash
 DATABASE_URL="postgresql://..." npx drizzle-kit migrate
 ```
 
 This reads the migration files from `drizzle/` and applies them in order.
-
-**Option B — Manual SQL via Railway's Query tab**
-
-1. Open the `aitorah-db` PostgreSQL service in Railway dashboard
-2. Go to the **Query** tab
-3. Paste and run the contents of `drizzle/0000_fuzzy_tombstone.sql`:
 
 ```sql
 CREATE TABLE "qa_pairs" (
@@ -125,7 +138,7 @@ CREATE INDEX "idx_qa_created" ON "qa_pairs" USING btree ("created_at");
 
 **Note**: If `DATABASE_URL` is not set or the table doesn't exist, the app still works — it just skips Q&A caching silently.
 
-### 3.4 Verify deployment
+### 3.5 Verify deployment
 After Railway deploys (typically 2-3 minutes):
 
 **Test search:**

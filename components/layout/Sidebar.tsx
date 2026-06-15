@@ -27,7 +27,7 @@ export function Sidebar() {
   const pathname = usePathname()
 
   return (
-    <aside className="w-[220px] bg-white border-r border-[var(--border)] flex flex-col flex-shrink-0 overflow-y-auto">
+    <aside className="hidden md:flex w-[220px] bg-white border-r border-[var(--border)] flex-col flex-shrink-0 overflow-y-auto">
       <Link href="/" className="flex items-center gap-2.5 px-4 py-5 border-b border-[var(--border)] font-serif text-[17px] font-bold text-[var(--primary)]">
         <LogoMark size={24} />
         AI Torah
