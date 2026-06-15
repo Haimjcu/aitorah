@@ -215,6 +215,7 @@ User Question
 
 ## 5. Caching Behavior
 
+
 The RAG uses in-memory caching on the Railway instance. This means:
 
 | Data | TTL | Notes |

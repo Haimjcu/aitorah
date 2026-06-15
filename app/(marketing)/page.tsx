@@ -47,7 +47,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-6 relative z-10">
           <div className="inline-flex items-center gap-2 bg-[rgba(181,145,74,.2)] border border-[rgba(181,145,74,.4)] text-[var(--accent-light)] px-4 py-1.5 rounded-full text-sm font-medium mb-6">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-            We're bulding something new — get involved!
+            We're building something new — get involved!
           </div>
           <h1 className="font-serif text-4xl md:text-6xl font-bold text-white mb-5 max-w-2xl leading-tight">
             Explore Torah<br />With The Help Of<br />Artificial Intelligence
@@ -57,7 +57,7 @@ export default function HomePage() {
           </p>
           <HeroChat />
           <div className="flex flex-wrap gap-10 mt-16 pt-10 border-t border-white/12">
-            {[['12,000+', 'Torah texts indexed'], ['340+', 'Community members'], ['48', 'AI apps in directory'], ['24', 'Events hosted']].map(([num, label]) => (
+            {[['50,000+', 'Torah texts searchable'], ['Open', 'Free to use'], ['Sefaria-powered', 'Source library']].map(([num, label]) => (
               <div key={label}>
                 <div className="font-serif text-3xl font-bold text-[var(--accent-light)]">{num}</div>
                 <div className="text-sm text-white/60 mt-0.5">{label}</div>
@@ -156,7 +156,7 @@ export default function HomePage() {
           </div>
           <div className="text-center mt-8">
             <Link href="/apps" className="inline-flex items-center px-5 py-2.5 border border-[var(--primary)] text-[var(--primary)] rounded-lg text-sm font-medium hover:bg-[var(--primary)] hover:text-white transition-all">
-              View All 48 Apps →
+              View All Apps →
             </Link>
           </div>
         </div>
