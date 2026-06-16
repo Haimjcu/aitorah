@@ -48,7 +48,7 @@ export default function ContactPage() {
         <div className="max-w-3xl mx-auto px-6">
           <h1 className="font-serif text-4xl md:text-5xl font-bold text-white mb-4">We're Building Something New</h1>
           <p className="text-lg text-white/75 leading-relaxed max-w-xl mx-auto">
-            AI Torah is in its earliest stage. Most of what you see on this site is aspirational — a vision we're sharing to find the right people to build it with.
+            The AI Torah site is built — but the AI Torah engine is not. We're looking for developers, Torah scholars, and collaborators to help us build the core intelligence that powers it all.
           </p>
         </div>
       </section>
@@ -66,7 +66,6 @@ export default function ContactPage() {
                 ['AI Study Partner', 'Conversational Torah study with cited sources, streamed in real time'],
                 ['Semantic Search', 'Search by meaning across Tanakh, Mishnah, Gemara, and more'],
                 ['Community', 'Forums, Discord, and live events for builders and learners'],
-                ['Marketplace', 'A place for the community to share and sell Torah AI tools'],
               ].map(([title, desc]) => (
                 <li key={title} className="flex gap-3">
                   <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] mt-2 flex-shrink-0" />

@@ -19,7 +19,7 @@ export function Navbar() {
         </Link>
 
         <div className="hidden md:flex items-center gap-1">
-          {['Study', 'Apps', 'Community', 'Blog', 'Events', 'Contact'].map((item) => (
+          {['Study', 'Search', 'Community', 'Contact'].map((item) => (
             <Link
               key={item}
               href={`/${item.toLowerCase()}`}
@@ -31,12 +31,9 @@ export function Navbar() {
         </div>
 
         <div className="hidden md:flex items-center gap-2">
-          <Link href="/signin" className="px-3 py-1.5 rounded-md text-sm font-medium text-[var(--text-sec)] hover:bg-[var(--surface-alt)] transition-all">
-            Sign In
-          </Link>
-          <Link href="/signup" className="px-4 py-2 rounded-md text-sm font-medium bg-[var(--accent)] text-white hover:bg-[var(--accent-dark)] transition-all">
-            Get Started →
-          </Link>
+          <a href="https://www.sefaria.org/texts" target="_blank" rel="noopener noreferrer">
+            <img src="/powered-by-sefaria.png" alt="Powered by Sefaria" className="h-8" />
+          </a>
         </div>
 
         <Link href="/" className="md:hidden flex items-center gap-2.5 font-serif text-xl font-bold text-[var(--primary)]">

@@ -6,10 +6,7 @@ import { LogoMark } from '@/components/ui/LogoMark'
 const menuItems = [
   { label: 'Study', href: '/study' },
   { label: 'Search', href: '/search' },
-  { label: 'Apps', href: '/apps' },
   { label: 'Community', href: '/community' },
-  { label: 'Blog', href: '/blog' },
-  { label: 'Events', href: '/events' },
   { label: 'Contact', href: '/contact' },
 ]
 
@@ -57,21 +54,10 @@ export function MobileMenuDrawer({ open, onClose }: { open: boolean; onClose: ()
             </Link>
           ))}
         </nav>
-        <div className="p-3 border-t border-[var(--border)] flex flex-col gap-2">
-          <Link
-            href="/signin"
-            onClick={onClose}
-            className="block px-4 py-2.5 rounded-lg text-sm font-medium text-[var(--text-sec)] hover:bg-[var(--surface-alt)] text-center transition-all"
-          >
-            Sign In
-          </Link>
-          <Link
-            href="/signup"
-            onClick={onClose}
-            className="block px-4 py-2.5 rounded-lg text-sm font-medium bg-[var(--accent)] text-white hover:bg-[var(--accent-dark)] text-center transition-all"
-          >
-            Get Started →
-          </Link>
+        <div className="p-3 border-t border-[var(--border)] flex justify-center">
+          <a href="https://www.sefaria.org/texts" target="_blank" rel="noopener noreferrer">
+            <img src="/powered-by-sefaria.png" alt="Powered by Sefaria" className="h-8" />
+          </a>
         </div>
       </div>
     </div>

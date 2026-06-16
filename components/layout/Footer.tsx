@@ -16,9 +16,9 @@ export function Footer() {
             </p>
           </div>
           {[
-            { title: 'Product', links: [{ label: 'Study Partner', href: '/study' }, { label: 'Torah Search', href: '/search' }, { label: 'App Directory', href: '/apps' }, { label: 'Marketplace', href: '/contact' }, { label: 'Pricing', href: '/contact' }] },
-            { title: 'Community', links: [{ label: 'Forum', href: '/community' }, { label: 'Discord', href: 'https://discord.gg/7aXpVR6AK' }, { label: 'Events', href: '/events' }, { label: 'Blog', href: '/blog' }, { label: 'Resources', href: '/contact' }] },
-            { title: 'Company', links: [{ label: 'About', href: '/contact' }, { label: 'Contact', href: '/contact' }, { label: 'Privacy', href: '/contact' }, { label: 'Terms', href: '/contact' }] },
+            { title: 'Product', links: [{ label: 'Study Partner', href: '/study' }, { label: 'Torah Search', href: '/search' }] },
+            { title: 'Community', links: [{ label: 'Forum', href: '/community' }, { label: 'Discord', href: 'https://discord.gg/7aXpVR6AK' }] },
+            { title: 'Company', links: [{ label: 'Contact', href: '/contact' }] },
           ].map((col) => (
             <div key={col.title}>
               <h4 className="text-white text-xs font-semibold uppercase tracking-wider mb-3">{col.title}</h4>
