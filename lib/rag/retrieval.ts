@@ -23,9 +23,10 @@ export interface RetrievalResult {
 
 export async function retrieve(
   question: string,
-  client: Anthropic
+  client: Anthropic,
+  preClassifiedIntent?: ParsedIntent
 ): Promise<RetrievalResult> {
-  const intent = await classifyIntent(question, client)
+  const intent = preClassifiedIntent ?? await classifyIntent(question, client)
 
   const tasks: Promise<RetrievedSource[]>[] = []
 

@@ -4,6 +4,9 @@ import { retrieve, formatSourcesForPrompt, sourcesToClientFormat } from '@/lib/r
 import { buildStudyPartnerSystemPrompt } from '@/lib/ai/prompts'
 import { saveQaPair, findSimilarQuestion } from '@/lib/db/qa'
 import { checkRateLimit } from '@/lib/ratelimit'
+import { classifyIntent } from '@/lib/rag/intent'
+import { resolveCalendar } from '@/lib/hebcal/resolver'
+import { resolveGeo } from '@/lib/hebcal/geo'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 const hasDb = !!process.env.DATABASE_URL
@@ -37,10 +40,32 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const { sources } = await retrieve(lastUserMessage.content, client)
+    const intent = await classifyIntent(lastUserMessage.content, client)
+
+    let calendarContext: string | undefined
+    let parashaRef: string | undefined
+
+    if (intent.type.startsWith('calendar_')) {
+      try {
+        const geo = intent.calendar_params?.needs_location
+          ? await resolveGeo(req)
+          : null
+        const calResult = await resolveCalendar(intent, geo)
+        calendarContext = calResult.text
+        parashaRef = calResult.parashaRef
+      } catch (e) {
+        console.error('Hebcal resolution failed, continuing without calendar data:', e)
+      }
+    }
+
+    if (parashaRef && intent.refs.length === 0) {
+      intent.refs.push(parashaRef)
+    }
+
+    const { sources } = await retrieve(lastUserMessage.content, client, intent)
 
     const passagesText = formatSourcesForPrompt(sources)
-    const systemPrompt = buildStudyPartnerSystemPrompt(passagesText)
+    const systemPrompt = buildStudyPartnerSystemPrompt(passagesText, calendarContext)
 
     const clientSources = sourcesToClientFormat(sources)
 
