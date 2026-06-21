@@ -1,6 +1,6 @@
 # AI Torah — Architecture Document
 
-> Last updated: 2026-06-17
+> Last updated: 2026-06-21
 
 ---
 
@@ -8,7 +8,7 @@
 
 AI Torah is a web platform at the intersection of artificial intelligence and Torah scholarship. It provides an **AI-powered study partner** (conversational Q&A with cited sources), **semantic Torah search** across the Sefaria library, and a **community hub** for scholars and developers to collaborate.
 
-The target audience is Torah scholars, developers building Torah AI tools, and educators. The project is founded by Rabbi Haim Lubin and is in its early/MVP stage — the website and core AI chat are functional, while several planned features (marketplace, forums, authentication, CMS content) exist only as scaffolded placeholders.
+The target audience is Torah scholars, developers building Torah AI tools, and educators. The project is founded by Rabbi Haim Lubin and is in its early/MVP stage — the website and core AI chat are functional with authentication and session persistence, while several planned features (marketplace, forums, CMS content) exist only as scaffolded placeholders.
 
 ---
 
@@ -16,7 +16,9 @@ The target audience is Torah scholars, developers building Torah AI tools, and e
 
 ### 2.1 High-Level Overview
 
-- **AI Study Partner** — Conversational Torah study powered by Claude (Anthropic). Users ask questions; the system retrieves relevant sources from Sefaria, then streams an AI-generated answer with citations.
+- **AI Study Partner** — Conversational Torah study powered by Claude (Anthropic). Users ask questions; the system retrieves relevant sources from Sefaria, then streams an AI-generated answer with citations. Sessions are persisted to PostgreSQL for authenticated users.
+- **Authentication** — Email+password and Google OAuth sign-in via NextAuth v5 (Auth.js). JWT session strategy with PostgreSQL-backed user storage via Drizzle adapter. Anonymous users can try one chat exchange before being prompted to sign in.
+- **Session Persistence** — Authenticated users' chat sessions are saved to PostgreSQL with auto-save on each response. Sessions appear in a left sidebar (Claude Desktop-style) with load, delete, and new session controls.
 - **Jewish Calendar (Hebcal)** — Real-time calendar data via Hebcal REST APIs: weekly parasha with full leyning, daily learning schedules (Daf Yomi, Mishna Yomi, etc.), Shabbat/candle-lighting times, halachic zmanim, upcoming holidays, and Hebrew↔Gregorian date conversion. IP-based geolocation detects Israel vs. Diaspora for parasha/schedule differences.
 - **Torah Search** — Full-text search across the Sefaria library (Tanakh, Mishnah, Gemara, Rishonim, Acharonim) via Sefaria's ElasticSearch API. Supports category filtering.
 - **Q&A Cache** — Previously answered questions are cached in PostgreSQL. Identical questions return cached answers instantly.
@@ -24,7 +26,7 @@ The target audience is Torah scholars, developers building Torah AI tools, and e
 - **Feedback Collection** — Accepts RLHF-style feedback (rating + correction) per chat message. Currently logs to console only (DB write is a TODO).
 - **Community Page** — Static page directing users to the Discord server.
 - **Health Check** — Simple `/api/health` endpoint for deployment monitoring.
-- **SEO** — Auto-generated `robots.txt`, `sitemap.xml`, and `llms.txt`.
+- **SEO** — Auto-generated `robots.txt`, `sitemap.xml`, `llms.txt`, OpenGraph images, Apple icon, PWA manifest, JSON-LD structured data, per-page metadata.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -125,9 +127,13 @@ The target audience is Torah scholars, developers building Torah AI tools, and e
 - `lib/ai/prompts.ts` — System prompt builder (now accepts optional `calendarContext` parameter)
 - `lib/db/qa.ts` — Q&A pair CRUD (save, find similar, get by slug, list recent)
 - `lib/db/index.ts` — Drizzle/pg connection pool
-- `lib/db/schema.ts` — `qa_pairs` table definition
+- `lib/db/schema.ts` — Drizzle table definitions (qa_pairs, users, accounts, auth_sessions, study_sessions, verification_tokens)
+- `lib/auth.ts` — NextAuth v5 configuration (Google + Credentials providers, Drizzle adapter, JWT strategy)
 - `lib/ratelimit.ts` — Upstash Redis rate limiting
-- `components/study/ChatInterface.tsx` — Chat UI component
+- `components/study/ChatInterface.tsx` — Chat UI with auth-aware session sidebar, mobile drawer, auth prompt
+- `components/study/AuthModal.tsx` — Sign in / sign up modal (email+password, Google OAuth)
+- `components/providers/AuthProvider.tsx` — NextAuth SessionProvider wrapper
+- `components/ui/CopyButton.tsx` — Copy-to-clipboard button with checkmark feedback
 - `components/home/HeroChat.tsx` — Home page chat input
 
 **Dependencies**: Anthropic API (Claude Haiku + Sonnet), Sefaria API, Hebcal API (hebcal.com, no auth), ip-api.com (geolocation, no auth), optionally PostgreSQL + Upstash Redis.
@@ -271,13 +277,23 @@ aitorah/
 │   │       └── page.tsx              # Contact form UI (client component)
 │   ├── api/                          # API routes
 │   │   ├── answers/route.ts          # GET — cached Q&A pairs
+│   │   ├── auth/
+│   │   │   ├── [...nextauth]/route.ts# NextAuth catch-all handler (GET/POST)
+│   │   │   └── signup/route.ts       # POST — email/password signup
 │   │   ├── chat/route.ts             # POST — RAG chat (streaming)
 │   │   ├── contact/route.ts          # POST — contact form (Resend email)
 │   │   ├── feedback/route.ts         # POST — RLHF feedback (stub)
 │   │   ├── health/route.ts           # GET — health check
-│   │   └── search/route.ts           # GET — Sefaria full-text search
-│   ├── layout.tsx                    # Root layout (fonts, GTM, Footer)
+│   │   ├── search/route.ts           # GET — Sefaria full-text search
+│   │   └── sessions/
+│   │       ├── route.ts              # GET (list) / POST (create) study sessions
+│   │       └── [id]/route.ts         # GET / PATCH / DELETE individual session
+│   ├── layout.tsx                    # Root layout (fonts, GTM, Footer, AuthProvider)
 │   ├── globals.css                   # CSS variables, Tailwind directives, Hebrew class
+│   ├── manifest.ts                   # PWA web manifest
+│   ├── opengraph-image.png           # Default OG image (1200×630)
+│   ├── apple-icon.png                # Apple touch icon (180×180)
+│   ├── favicon.ico                   # Multi-size favicon (transparent bg)
 │   ├── robots.ts                     # robots.txt generation
 │   └── sitemap.ts                    # sitemap.xml generation
 ├── components/
@@ -286,24 +302,29 @@ aitorah/
 │   ├── layout/
 │   │   ├── AppPageHeader.tsx         # Header bar for app pages (title + mobile menu)
 │   │   ├── AppShell.tsx              # Full-height sidebar + content container
-│   │   ├── Footer.tsx                # Site-wide footer with links and social icons
+│   │   ├── Footer.tsx                # Site-wide footer with Sefaria + Hebcal attribution links
 │   │   ├── MobileMenu.tsx            # Hamburger button + slide-out drawer
 │   │   ├── Navbar.tsx                # Top nav for marketing pages
 │   │   └── Sidebar.tsx               # Left sidebar for app pages (Study, Search, etc.)
+│   ├── providers/
+│   │   └── AuthProvider.tsx          # NextAuth SessionProvider wrapper (client component)
 │   ├── search/
-│   │   └── SearchInterface.tsx       # Search UI with filters and result cards
+│   │   └── SearchInterface.tsx       # Search UI with filters, result cards, copy button
 │   ├── study/
-│   │   └── ChatInterface.tsx         # Chat UI with message bubbles, source panel, hints
+│   │   ├── AuthModal.tsx             # Sign in / sign up modal (email+password, Google OAuth)
+│   │   └── ChatInterface.tsx         # Chat UI with auth-aware session sidebar, mobile drawer
 │   └── ui/
 │       ├── BuildingBanner.tsx        # "We're building something new" CTA banner
+│       ├── CopyButton.tsx            # Copy-to-clipboard button with checkmark feedback
 │       └── LogoMark.tsx              # Logo image component (dark/light variants)
 ├── lib/
 │   ├── ai/
 │   │   └── prompts.ts               # System prompt builder for study partner
+│   ├── auth.ts                       # NextAuth v5 config (Google + Credentials, Drizzle adapter, JWT)
 │   ├── db/
 │   │   ├── index.ts                  # Drizzle + pg Pool singleton
 │   │   ├── qa.ts                     # Q&A pair CRUD operations
-│   │   └── schema.ts                 # Drizzle table defs + legacy TS interfaces
+│   │   └── schema.ts                 # Drizzle table defs (users, accounts, sessions, qa_pairs, etc.)
 │   ├── hebcal/                       # Jewish calendar integration (Hebcal REST APIs)
 │   │   ├── types.ts                  # TypeScript interfaces for Hebcal API responses
 │   │   ├── client.ts                 # Hebcal API client (calendar, shabbat, zmanim, converter) with LRU cache
@@ -321,6 +342,7 @@ aitorah/
 │   └── ratelimit.ts                  # Upstash Redis rate limiting
 ├── drizzle/
 │   ├── 0000_fuzzy_tombstone.sql      # Initial migration: qa_pairs table
+│   ├── 0001_chilly_earthquake.sql    # Auth + sessions migration: users, accounts, auth_sessions, study_sessions, verification_tokens
 │   └── meta/                         # Drizzle Kit migration metadata
 ├── docs/                             # Design documents (reference only, not code)
 │   ├── 01-system-architecture.md
@@ -336,10 +358,12 @@ aitorah/
 ├── public/                           # Static assets
 │   ├── llms.txt                      # LLM-readable site description
 │   ├── logo.png, logo-light.png, logo-transparent.png
-│   ├── powered-by-sefaria.png
+│   ├── icon-192.png, icon-512.png    # PWA manifest icons
 │   ├── torah-scroll-bg.png
 │   ├── haim.jpeg
 │   └── fonts/                        # (empty — fonts loaded via next/font/google)
+├── types/
+│   └── next-auth.d.ts                # Type augmentation: session.user.id
 ├── sanity/schemas/                   # Sanity CMS schema definitions (empty — not yet built)
 ├── Sefaria-Project-master/           # Full clone of Sefaria's codebase (reference only)
 ├── hebcal-es6-main/                  # Clone of @hebcal/core ES6 library (reference only, excluded from TS compilation)
@@ -370,14 +394,18 @@ aitorah/
 | Component / Module | File | Purpose | Imported By |
 |---|---|---|---|
 | `LogoMark` | `components/ui/LogoMark.tsx` | Renders the AI Torah logo (dark/light variants) | `Navbar`, `Sidebar`, `MobileMenu`, `Footer` |
+| `CopyButton` | `components/ui/CopyButton.tsx` | Copy-to-clipboard with checkmark feedback | `ChatInterface`, `SearchInterface` |
 | `BuildingBanner` | `components/ui/BuildingBanner.tsx` | CTA banner linking to `/contact` | Not currently imported (available for use) |
+| `AuthProvider` | `components/providers/AuthProvider.tsx` | NextAuth `SessionProvider` wrapper | `app/layout.tsx` (root) |
+| `AuthModal` | `components/study/AuthModal.tsx` | Sign in / sign up modal (email + Google OAuth) | `ChatInterface` |
 | `AppShell` | `components/layout/AppShell.tsx` | Full-height `Sidebar + content` container | `app/(app)/layout.tsx` |
 | `AppPageHeader` | `components/layout/AppPageHeader.tsx` | Page header with title + mobile menu | `study/page.tsx`, `search/page.tsx` |
 | `Navbar` | `components/layout/Navbar.tsx` | Top navigation for marketing pages | `app/(marketing)/layout.tsx` |
-| `Footer` | `components/layout/Footer.tsx` | Site-wide footer with social links and "Powered by Hebcal" attribution | `app/layout.tsx` (root) |
+| `Footer` | `components/layout/Footer.tsx` | Site-wide footer with Sefaria + Hebcal attribution links | `app/layout.tsx` (root) |
 | `Sidebar` | `components/layout/Sidebar.tsx` | Left sidebar navigation for app pages | `AppShell` |
 | `MobileMenu` | `components/layout/MobileMenu.tsx` | Hamburger button + drawer overlay | `Navbar`, `AppPageHeader` |
-| `getDb()` | `lib/db/index.ts` | Returns Drizzle ORM instance with pg Pool | `lib/db/qa.ts` |
+| `auth` / `handlers` | `lib/auth.ts` | NextAuth v5 config (JWT, Google + Credentials) | `api/auth/[...nextauth]`, `api/sessions/*`, `api/auth/signup` |
+| `getDb()` | `lib/db/index.ts` | Returns Drizzle ORM instance with pg Pool | `lib/db/qa.ts`, `lib/auth.ts`, session API routes |
 | `checkRateLimit()` | `lib/ratelimit.ts` | IP-based rate limiting via Upstash Redis | `app/api/chat/route.ts` |
 | `classifyIntent()` | `lib/rag/intent.ts` | Classifies user question into structured intent (incl. 7 calendar types) | `app/api/chat/route.ts` |
 | `retrieve()` | `lib/rag/retrieval.ts` | Full RAG retrieval pipeline (accepts optional pre-classified intent) | `app/api/chat/route.ts` |
@@ -397,7 +425,7 @@ aitorah/
 
 | Source | Type | Connection | Status |
 |---|---|---|---|
-| PostgreSQL | Database | `DATABASE_URL` env var | Optional — app works without it (Q&A caching disabled) |
+| PostgreSQL | Database | `DATABASE_URL` env var | Optional — app works without it (Q&A caching + auth + sessions disabled) |
 | Sefaria API | External REST API | `https://www.sefaria.org` (no auth required) | Active — primary Torah text source |
 | Hebcal API | External REST API | `https://www.hebcal.com` (no auth required) | Active — Jewish calendar data (parasha, zmanim, holidays, dates) |
 | ip-api.com | External REST API | `http://ip-api.com` (no auth, free tier) | Active — IP geolocation for Israel/Diaspora detection |
@@ -406,9 +434,59 @@ aitorah/
 | Resend | Email API | `RESEND_API_KEY` env var | Active — contact form emails |
 | Sanity CMS | Headless CMS | `NEXT_PUBLIC_SANITY_PROJECT_ID` + `SANITY_API_TOKEN` | Configured but unused — no content or pages consume it |
 
-**Database schema** (single table — `drizzle/0000_fuzzy_tombstone.sql`):
+**Database schema** (6 tables — `drizzle/0000_fuzzy_tombstone.sql` + `drizzle/0001_chilly_earthquake.sql`):
 
 ```
+users
+├── id                  uuid        PK, auto-generated
+├── name                text        nullable
+├── email               text        NOT NULL
+├── email_verified      timestamptz nullable
+├── image               text        nullable
+├── password_hash       text        nullable — bcrypt hash (null for OAuth-only users)
+├── created_at          timestamptz default now()
+│
+└── UNIQUE INDEX idx_users_email (email)
+
+accounts (OAuth provider accounts)
+├── id                  uuid        PK, auto-generated
+├── user_id             uuid        FK → users.id ON DELETE CASCADE
+├── type                text        NOT NULL — "oauth" | "oidc" | "email"
+├── provider            text        NOT NULL — "google" | "credentials"
+├── provider_account_id text        NOT NULL
+├── refresh_token       text        nullable
+├── access_token        text        nullable
+├── expires_at          integer     nullable
+├── token_type          text        nullable
+├── scope               text        nullable
+├── id_token            text        nullable
+├── session_state       text        nullable
+│
+└── INDEX idx_accounts_user (user_id)
+
+auth_sessions (NextAuth database sessions — mostly unused with JWT strategy)
+├── session_token       text        PK
+├── user_id             uuid        FK → users.id ON DELETE CASCADE
+└── expires             timestamptz NOT NULL
+
+verification_tokens
+├── identifier          text        NOT NULL
+├── token               text        NOT NULL
+├── expires             timestamptz NOT NULL
+│
+└── UNIQUE INDEX idx_vt_token (token)
+
+study_sessions (persisted chat sessions)
+├── id                  uuid        PK, auto-generated
+├── user_id             uuid        FK → users.id ON DELETE CASCADE
+├── title               text        nullable — auto-generated from first question
+├── messages            text        NOT NULL — JSON stringified array of {role, content, sources?}
+├── created_at          timestamptz default now()
+├── updated_at          timestamptz default now()
+│
+├── INDEX idx_study_sessions_user    (user_id)
+└── INDEX idx_study_sessions_updated (updated_at)
+
 qa_pairs
 ├── id                  uuid        PK, auto-generated
 ├── question            text        NOT NULL — original user question
@@ -427,7 +505,7 @@ qa_pairs
 └── INDEX idx_qa_created (created_at)
 ```
 
-**Legacy TypeScript interfaces** in `lib/db/schema.ts` (lines 23-92) define types for future tables: `User`, `TorahText`, `StudySession`, `MarketplaceListing`, `Order`, `RlhfFeedback`. These are **not backed by database tables** — they are aspirational type definitions only.
+**Legacy TypeScript interfaces** in `lib/db/schema.ts` define types for future tables: `TorahText`, `MarketplaceListing`, `Order`, `RlhfFeedback`. These are **not backed by database tables** — they are aspirational type definitions only.
 
 **Sefaria API caching**: `lib/sefaria/client.ts` implements an in-memory LRU cache (max 500 entries) with configurable TTL. Text lookups cache for 24 hours; search results cache for 1 hour. Cache is per-process and resets on deploy.
 
@@ -440,7 +518,7 @@ qa_pairs
 | Route | Page File | Layout | Description |
 |---|---|---|---|
 | `/` | `app/(marketing)/page.tsx` | Marketing (Navbar) | Home page: hero with chat input, feature cards, how-it-works, CTA |
-| `/study` | `app/(app)/study/page.tsx` | App (Sidebar) | AI Study Partner: full chat interface with source panel |
+| `/study` | `app/(app)/study/page.tsx` | App (Sidebar) | AI Study Partner: chat interface with session sidebar, auth modals |
 | `/search` | `app/(app)/search/page.tsx` | App (Sidebar) | Torah Search: search bar, filters, result cards |
 | `/community` | `app/(marketing)/community/page.tsx` | Marketing (Navbar) | Community: Discord info, channels, audience types |
 | `/contact` | `app/(marketing)/contact/page.tsx` | Marketing (Navbar) | Contact form: name, email, interests, message |
@@ -453,7 +531,15 @@ qa_pairs
 3. Redirected to `/study?q=<encoded question>`.
 4. `ChatInterface` reads `q` param, auto-sends the message.
 5. Answer streams in with cited sources. User can expand sources panel to view Hebrew/English text and "View on Sefaria" links.
-6. User can continue the conversation with follow-up questions.
+6. After first response, if not authenticated, an auth prompt card appears. Input is disabled until sign in.
+7. Once signed in, the conversation is auto-saved and the user can continue with follow-up questions.
+
+**Flow 1b: Sign up / Sign in**
+1. User clicks "Sign in" (sidebar bottom, auth prompt card, or mobile header).
+2. Auth modal opens with Sign In / Sign Up tabs.
+3. User can sign in with email+password or Google OAuth.
+4. On successful auth, modal closes, session list loads, current conversation is saved.
+5. Sessions appear in left sidebar (desktop) or slide-out drawer (mobile).
 
 **Flow 2: Search Torah texts**
 1. User navigates to `/search` via sidebar or navbar.
@@ -472,15 +558,16 @@ qa_pairs
 ```
 Root Layout (app/layout.tsx)
 ├── GTM script (head)
+├── JSON-LD structured data (Organization + WebSite)
 ├── Font CSS variables (body class)
-├── {children}                        ← route group layout injected here
-└── Footer (components/layout/Footer.tsx)
+├── AuthProvider (NextAuth SessionProvider)
+│   ├── {children}                    ← route group layout injected here
+│   └── Footer (components/layout/Footer.tsx)
 
 Marketing Layout (app/(marketing)/layout.tsx)
 ├── Navbar (components/layout/Navbar.tsx)
 │   ├── Logo + "AI Torah" link
 │   ├── Nav links: Study, Search, Community, Contact
-│   ├── "Powered by Sefaria" badge
 │   └── Mobile: hamburger → MobileMenuDrawer
 └── <main>{children}</main>
 
@@ -488,24 +575,34 @@ App Layout (app/(app)/layout.tsx)
 └── AppShell (components/layout/AppShell.tsx)
     ├── Sidebar (components/layout/Sidebar.tsx)    ← hidden on mobile
     │   ├── Logo + "AI Torah" link
-    │   ├── Nav: Study Partner, Torah Search, Community, Contact
-    │   └── "Powered by Sefaria" badge
+    │   └── Nav: Study Partner, Torah Search, Community, Contact
     └── Content area
         └── {children}                             ← individual page
             └── AppPageHeader (title + mobile menu)
+
+Study Page (/study) — ChatInterface internal layout:
+├── Session sidebar (w-60, hidden on mobile)
+│   ├── "New Session" button
+│   ├── Session list (titles, timestamps, delete buttons)
+│   └── Bottom: sign-in button or user avatar + sign out
+├── Mobile: sessions drawer (slide-out, triggered by clock icon)
+└── Main chat area
+    ├── Welcome landing (centered, shown when no messages)
+    └── Chat panel (messages, sources, copy buttons, auth prompt, input)
 ```
 
 #### Navigation
 
 - **Marketing pages** (`/`, `/community`, `/contact`): Top `Navbar` with horizontal links. Mobile: hamburger opens `MobileMenuDrawer` (left slide-out).
 - **App pages** (`/study`, `/search`): Left `Sidebar` (220px, hidden on mobile). Mobile: `AppPageHeader` includes a hamburger that opens the same `MobileMenuDrawer`.
+- **Study page** additionally has its own session sidebar (240px) within ChatInterface, separate from the app Sidebar.
 - Nav items are defined as constants in `Sidebar.tsx` (line 7), `MobileMenu.tsx` (line 6), and `Navbar.tsx` (line 22).
-- No auth guards or route protection — all pages are publicly accessible.
+- No hard auth guards — all pages are publicly accessible. The study page prompts sign-in after first chat exchange but doesn't force redirect.
 
 #### State Management
 
-No global state management library. All state is local to components via React `useState`:
-- `ChatInterface`: messages array, input text, streaming state, open source panels
+No global state management library. Auth state is provided by NextAuth's `SessionProvider` (context-based). All other state is local to components via React `useState`:
+- `ChatInterface`: messages array, input text, streaming state, open source panels, session list, current session ID, auth modal visibility, mobile drawer state
 - `SearchInterface`: query, active filter, results, search state
 - `ContactPage`: form fields, submission state
 - `HeroChat`: input text
@@ -597,6 +694,45 @@ No global state management library. All state is local to components via React `
 
 **Query params**: `slug` (optional). Without slug, returns 50 most recent Q&A pairs.
 
+#### POST `/api/auth/signup`
+
+**Request**:
+| Field | Type | Validation | Purpose |
+|---|---|---|---|
+| `name` | `string` | optional | Display name |
+| `email` | `string` | required, email format | User email (unique) |
+| `password` | `string` | required, 8+ chars | Password (hashed with bcrypt-12) |
+
+**Response**: `201` on success, `400` if validation fails, `409` if email exists.
+
+#### GET/POST `/api/auth/[...nextauth]`
+
+NextAuth v5 catch-all handler. Handles OAuth callbacks, CSRF, session retrieval. Not called directly by client code — managed by `next-auth/react` methods (`signIn()`, `signOut()`, `useSession()`).
+
+#### GET `/api/sessions`
+
+Returns authenticated user's study sessions (max 50, ordered by `updatedAt` desc).
+
+**Response**: Array of `{ id, title, updatedAt }`.
+
+#### POST `/api/sessions`
+
+**Request**:
+| Field | Type | Purpose |
+|---|---|---|
+| `title` | `string` | Session title (auto-generated from first question) |
+| `messages` | `Array<Message>` | Full message history (JSON stringified on save) |
+
+**Response**: `{ id, title, updatedAt }`.
+
+#### GET/PATCH/DELETE `/api/sessions/[id]`
+
+- **GET**: Returns `{ id, title, messages (parsed), createdAt, updatedAt }`. 404 if not owned by user.
+- **PATCH**: Body `{ title?, messages? }`. Updates `updatedAt`. Returns `{ id, title, updatedAt }`.
+- **DELETE**: Removes session. Returns `204`.
+
+All session routes require authentication (return `401` if not signed in) and enforce user ownership.
+
 ### 4.3 Environment Variables
 
 | Variable | Required | Used In | Purpose |
@@ -607,13 +743,13 @@ No global state management library. All state is local to components via React `
 | `CONTACT_EMAIL` | Yes (for contact) | `app/api/contact/route.ts:26` | Recipient of contact form emails |
 | `UPSTASH_REDIS_REST_URL` | No | `lib/ratelimit.ts:5` | Upstash Redis URL for rate limiting |
 | `UPSTASH_REDIS_REST_TOKEN` | No | `lib/ratelimit.ts:5` | Upstash Redis auth token |
-| `NEXTAUTH_SECRET` | No (unused) | — | Reserved for NextAuth.js |
-| `NEXTAUTH_URL` | No | `app/robots.ts:3`, `app/sitemap.ts:3` | Base URL for SEO files (defaults to `https://aitorah.com`) |
+| `NEXTAUTH_SECRET` | Yes (for auth) | `lib/auth.ts` | JWT signing secret for NextAuth (generate with `openssl rand -base64 32`) |
+| `NEXTAUTH_URL` | Yes (for auth) | `lib/auth.ts`, `app/robots.ts`, `app/sitemap.ts` | Full URL with protocol (e.g. `https://aitorah.com`). `trustHost: true` is set as fallback. |
+| `GOOGLE_CLIENT_ID` | No | `lib/auth.ts` | Google OAuth client ID (hides Google button if missing) |
+| `GOOGLE_CLIENT_SECRET` | No | `lib/auth.ts` | Google OAuth client secret |
 | `NEXT_PUBLIC_SANITY_PROJECT_ID` | No (unused) | `lib/sanity/client.ts:4` | Sanity project ID |
 | `NEXT_PUBLIC_SANITY_DATASET` | No (unused) | `lib/sanity/client.ts:5` | Sanity dataset (default: "production") |
 | `SANITY_API_TOKEN` | No (unused) | `lib/sanity/client.ts:12` | Sanity write token |
-| `GOOGLE_CLIENT_ID` | No (unused) | — | Reserved for Google OAuth |
-| `GOOGLE_CLIENT_SECRET` | No (unused) | — | Reserved for Google OAuth |
 | `DISCORD_CLIENT_ID` | No (unused) | — | Reserved for Discord OAuth |
 | `DISCORD_CLIENT_SECRET` | No (unused) | — | Reserved for Discord OAuth |
 | `OPENAI_API_KEY` | No (unused) | — | Reserved for embeddings |
@@ -782,7 +918,8 @@ The start command copies static assets and public files into the standalone buil
 
 | Variable | Feature it enables |
 |---|---|
-| `DATABASE_URL` | Q&A caching, answers API |
+| `DATABASE_URL` | Q&A caching, authentication, session persistence |
+| `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` | Google OAuth sign-in (hides button if missing) |
 | `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` | Rate limiting |
 | `NEXT_PUBLIC_SANITY_PROJECT_ID` + `SANITY_API_TOKEN` | CMS content (not yet used) |
 
@@ -831,15 +968,17 @@ DATABASE_URL=<railway-url> npx drizzle-kit push
 
 | Feature | Status | What's Built | What's Missing |
 |---|---|---|---|
-| Home page | **Working** | Full marketing page with hero chat | — |
-| AI Study Partner | **Working** | RAG pipeline, streaming chat, source panel | Session persistence, user accounts |
+| Home page | **Working** | Full marketing page with hero chat, "Ask AI Torah" CTAs, OG image | — |
+| AI Study Partner | **Working** | RAG pipeline, streaming chat, source panel, session sidebar, copy button | — |
+| Authentication | **Working** (needs DB) | NextAuth v5 (Email+Google), sign up/in modals, JWT sessions, Drizzle adapter | Email verification, password reset |
+| Session Persistence | **Working** (needs DB) | Auto-save, session list sidebar, load/delete/new, mobile drawer, anonymous→auth bridge | — |
 | Jewish Calendar | **Working** | Hebcal integration (parasha, learning, zmanim, holidays, dates), IP geolocation, Israel/Diaspora detection | User-selectable location override, persistent location preferences |
-| Torah Search | **Working** | Sefaria API search with filters | Local vector search (pgvector) |
+| Torah Search | **Working** | Sefaria API search with filters, copy button | Local vector search (pgvector) |
 | Q&A Cache | **Working** (needs DB) | Save/retrieve by exact match | Semantic similarity matching |
 | Contact Form | **Working** | Zod validation, Resend email | — |
 | Rate Limiting | **Working** (needs Redis) | Per-IP sliding windows | Per-user limits |
+| SEO | **Working** | OpenGraph image, Apple icon, PWA manifest, JSON-LD, per-page metadata, robots.txt, sitemap.xml, llms.txt | — |
 | Feedback | **Stub** | API validates input, logs to console | DB write, admin UI |
-| Auth (NextAuth) | **Not started** | `next-auth` in dependencies | Provider config, session handling, protected routes |
 | Sanity CMS | **Not started** | Client + queries written | Sanity project, schemas, page integration |
 | Marketplace | **Not started** | TypeScript interfaces only | Everything |
 | Discourse Forum | **Not started** | Env var placeholders | SSO integration, API calls |
