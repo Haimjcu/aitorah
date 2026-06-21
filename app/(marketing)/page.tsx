@@ -1,4 +1,11 @@
+import type { Metadata } from 'next'
 import { HeroChat } from '@/components/home/HeroChat'
+
+export const metadata: Metadata = {
+  title: 'AI Torah — Explore Torah With The Help Of Artificial Intelligence',
+  description: 'AI-powered Torah study partner and semantic search across Tanakh, Talmud, Mishnah, and more. Ask questions, get cited answers from authentic Jewish sources.',
+  alternates: { canonical: '/' },
+}
 
 export default function HomePage() {
   return (
@@ -21,7 +28,7 @@ export default function HomePage() {
             backgroundImage: `radial-gradient(ellipse at 70% 50%, rgba(181,145,74,.15) 0%, transparent 60%)`,
           }}
         />
-        <div className="max-w-7xl mx-auto px-6 relative z-10">
+        <div className="max-w-7xl mx-auto px-6 relative z-10 text-center flex flex-col items-center">
           <div className="inline-flex items-center gap-2 bg-[rgba(181,145,74,.2)] border border-[rgba(181,145,74,.4)] text-[var(--accent-light)] px-4 py-1.5 rounded-full text-sm font-medium mb-6">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
             We're building something new — get involved!
@@ -33,7 +40,7 @@ export default function HomePage() {
             A living community of scholars and developers building AI tools rooted in authentic tradition. Ask questions, study sources, and connect with others doing the same.
           </p>
           <HeroChat />
-          <div className="flex flex-wrap gap-10 mt-16 pt-10 border-t border-white/12">
+          <div className="flex flex-wrap gap-10 mt-16 pt-10 border-t border-white/12 justify-center">
             {[['50,000+', 'Torah texts searchable'], ['Open', 'Free to use'], ['Sefaria-powered', 'Source library']].map(([num, label]) => (
               <div key={label}>
                 <div className="font-serif text-3xl font-bold text-[var(--accent-light)]">{num}</div>
@@ -80,6 +87,12 @@ export default function HomePage() {
               <div className="text-[var(--text-sec)] text-sm italic mb-1.5">"Buy truth and do not sell it — also wisdom, discipline, and understanding."</div>
               <div className="text-sm text-[var(--accent-text)] font-semibold">— Mishlei 23:23</div>
             </div>
+            <div className="text-center mt-8">
+              <a href="/study" className="inline-flex items-center gap-2.5 px-8 py-4 rounded-lg bg-[var(--accent)] text-white font-medium text-lg hover:bg-[var(--accent-dark)] transition-all">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                Ask AI Torah
+              </a>
+            </div>
           </div>
         </div>
       </section>
@@ -100,6 +113,12 @@ export default function HomePage() {
                 <p className="text-sm text-[var(--text-sec)]">{desc}</p>
               </div>
             ))}
+          </div>
+          <div className="text-center mt-12">
+            <a href="/study" className="inline-flex items-center gap-2.5 px-8 py-4 rounded-lg bg-[var(--accent)] text-white font-medium text-lg hover:bg-[var(--accent-dark)] transition-all">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              Ask AI Torah
+            </a>
           </div>
         </div>
       </section>

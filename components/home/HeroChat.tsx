@@ -14,7 +14,7 @@ export function HeroChat() {
   }
 
   return (
-    <div className="max-w-[560px]">
+    <div className="w-full max-w-[560px]">
       <div className="flex items-end gap-2.5 bg-white/10 backdrop-blur-sm border border-white/25 rounded-xl px-3 py-2.5 focus-within:border-white/50 transition-colors">
         <textarea
           rows={1}

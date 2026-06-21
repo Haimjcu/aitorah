@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 
 const INTERESTS = [
   'Get notified when we launch',
@@ -90,10 +91,12 @@ export default function ContactPage() {
 
         {/* About */}
         <div className="bg-white border border-[var(--border)] rounded-lg p-6 mb-16 flex items-start gap-5">
-          <img
+          <Image
             src="/haim.jpeg"
             alt="Haim Lubin"
-            className="w-14 h-14 rounded-full object-cover flex-shrink-0"
+            width={56}
+            height={56}
+            className="rounded-full object-cover flex-shrink-0"
           />
           <div>
             <h3 className="font-semibold text-base mb-1">Rabbi Haim Lubin</h3>

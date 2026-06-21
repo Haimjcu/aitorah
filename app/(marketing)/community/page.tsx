@@ -1,6 +1,10 @@
 import type { Metadata } from 'next'
 
-export const metadata: Metadata = { title: 'Community — AI Torah' }
+export const metadata: Metadata = {
+  title: 'Community',
+  description: 'Join the AI Torah community on Discord. Connect with Torah scholars, developers, and educators building AI tools for Jewish learning.',
+  alternates: { canonical: '/community' },
+}
 
 const channels = [
   { name: 'General', desc: 'Main discussion space for AI conversation and community-wide discussion.' },
@@ -104,6 +108,19 @@ export default function CommunityPage() {
               LinkedIn
             </a>
           </div>
+        </div>
+      </section>
+
+      {/* Ask AI Torah CTA */}
+      <section className="py-16 bg-[var(--surface-alt)]">
+        <div className="max-w-4xl mx-auto px-6 text-center">
+          <a
+            href="/study"
+            className="inline-flex items-center gap-2.5 px-8 py-4 rounded-lg bg-[var(--accent)] text-white font-medium text-lg hover:bg-[var(--accent-dark)] transition-all"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Ask AI Torah
+          </a>
         </div>
       </section>
     </div>

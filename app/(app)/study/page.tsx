@@ -3,16 +3,16 @@ import { Suspense } from 'react'
 import { ChatInterface } from '@/components/study/ChatInterface'
 import { AppPageHeader } from '@/components/layout/AppPageHeader'
 
-export const metadata: Metadata = { title: 'Study Partner — AI Torah' }
+export const metadata: Metadata = {
+  title: 'Study Partner',
+  description: 'Ask any Torah question and get AI-generated answers with cited sources from Tanakh, Talmud, Mishnah, and more. Powered by Sefaria and Claude.',
+  alternates: { canonical: '/study' },
+}
 
 export default function StudyPage() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      <AppPageHeader title="Study Partner">
-        <a href="https://www.sefaria.org/texts" target="_blank" rel="noopener noreferrer">
-          <img src="/powered-by-sefaria.png" alt="Powered by Sefaria" className="h-8" />
-        </a>
-      </AppPageHeader>
+      <AppPageHeader title="Study Partner" />
       <div className="flex-1 overflow-hidden p-6">
         <Suspense>
           <ChatInterface />

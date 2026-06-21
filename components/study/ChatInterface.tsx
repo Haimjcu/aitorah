@@ -110,6 +110,49 @@ export function ChatInterface() {
     }
   }, [searchParams, router, sendMessage])
 
+  const hasUserMessages = messages.some((m) => m.role === 'user')
+
+  if (!hasUserMessages && !isStreaming) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="w-full max-w-[640px] text-center">
+          <div className="w-12 h-12 rounded-full bg-[var(--accent-light)] text-[var(--accent-text)] flex items-center justify-center font-serif text-lg font-semibold mx-auto mb-4">א</div>
+          <h2 className="text-2xl font-serif font-bold text-[var(--primary)] mb-2">AI Torah Study Partner</h2>
+          <p className="text-sm text-[var(--text-sec)] mb-8">Ask me anything about Torah, Talmud, Halacha, or Jewish philosophy — I&apos;ll find relevant sources and walk through them with you.</p>
+
+          <div className="flex items-end gap-2.5 bg-white border border-[var(--border)] rounded-xl px-3 py-2.5 focus-within:border-[var(--primary-light)] transition-colors">
+            <textarea
+              rows={1}
+              value={input}
+              onChange={(e) => {
+                setInput(e.target.value)
+                e.target.style.height = 'auto'
+                e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'
+              }}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input) } }}
+              placeholder="Ask about any Torah text or topic..."
+              className="flex-1 border-none outline-none resize-none font-sans text-sm leading-snug max-h-[120px] bg-transparent"
+            />
+            <button
+              onClick={() => sendMessage(input)}
+              disabled={isStreaming}
+              className="w-9 h-9 rounded-lg bg-[var(--primary)] text-white flex items-center justify-center flex-shrink-0 hover:bg-[var(--primary-light)] disabled:opacity-50 transition-all"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+          <div className="flex gap-2 mt-3 flex-wrap justify-center">
+            {HINTS.map((hint) => (
+              <button key={hint} onClick={() => sendMessage(hint)} className="bg-white border border-[var(--border)] rounded-full px-3 py-1 text-xs text-[var(--text-sec)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition-all">
+                {hint}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex gap-6 h-full">
       {/* Session list */}

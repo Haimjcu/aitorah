@@ -26,7 +26,7 @@ export function Sidebar() {
     <aside className="hidden md:flex w-[220px] bg-white border-r border-[var(--border)] flex-col flex-shrink-0 overflow-y-auto">
       <Link href="/" className="flex items-center gap-2.5 px-4 py-5 border-b border-[var(--border)] font-serif text-[17px] font-bold text-[var(--primary)]">
         <LogoMark size={24} />
-        AI Torah
+        Torah
       </Link>
       <nav className="flex-1 p-2">
         {navItems.map((item) => (
@@ -44,11 +44,6 @@ export function Sidebar() {
           </Link>
         ))}
       </nav>
-      <div className="p-3 border-t border-[var(--border)] flex justify-center">
-        <a href="https://www.sefaria.org/texts" target="_blank" rel="noopener noreferrer">
-          <img src="/powered-by-sefaria.png" alt="Powered by Sefaria" className="h-7" />
-        </a>
-      </div>
     </aside>
   )
 }

@@ -15,7 +15,7 @@ export function Navbar() {
 
         <Link href="/" className="hidden md:flex items-center gap-2.5 font-serif text-xl font-bold text-[var(--primary)]">
           <LogoMark />
-          AI Torah
+          Torah
         </Link>
 
         <div className="hidden md:flex items-center gap-1">
@@ -28,12 +28,6 @@ export function Navbar() {
               {item}
             </Link>
           ))}
-        </div>
-
-        <div className="hidden md:flex items-center gap-2">
-          <a href="https://www.sefaria.org/texts" target="_blank" rel="noopener noreferrer">
-            <img src="/powered-by-sefaria.png" alt="Powered by Sefaria" className="h-8" />
-          </a>
         </div>
 
         <Link href="/" className="md:hidden flex items-center gap-2.5 font-serif text-xl font-bold text-[var(--primary)]">

@@ -42,6 +42,50 @@ export function SearchInterface() {
     }
   }
 
+  if (!hasSearched) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="w-full max-w-[760px] text-center">
+          <h2 className="text-2xl font-serif font-bold text-[var(--primary)] mb-2">Torah Search</h2>
+          <p className="text-sm text-[var(--text-sec)] mb-6">Search across the Sefaria library — Tanakh, Talmud, Midrash, Halakhah, and more.</p>
+
+          <div className="flex bg-white border border-[var(--border)] rounded-xl overflow-hidden focus-within:border-[var(--primary-light)] transition-colors mb-3">
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              placeholder="Search Torah texts — try a topic, reference, or question..."
+              className="flex-1 border-none outline-none px-4 py-3 text-sm font-sans"
+            />
+            <button
+              onClick={handleSearch}
+              disabled={isSearching}
+              className="flex items-center gap-1.5 px-5 bg-[var(--primary)] text-white text-sm font-medium hover:bg-[var(--primary-light)] disabled:opacity-50 transition-all"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              {isSearching ? 'Searching...' : 'Search'}
+            </button>
+          </div>
+
+          <div className="flex gap-2 flex-wrap justify-center mb-5">
+            {FILTERS.map((f) => (
+              <button
+                key={f}
+                onClick={() => setActiveFilter(f)}
+                className={`px-4 py-1.5 rounded-full text-sm border transition-all ${activeFilter === f ? 'bg-[var(--primary)] text-white border-[var(--primary)]' : 'bg-white border-[var(--border)] text-[var(--text-sec)] hover:border-[var(--primary)] hover:text-[var(--primary)]'}`}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+
+          <p className="text-xs text-[var(--text-sec)]">Powered by Sefaria&apos;s ElasticSearch with Hebrew morphological analysis.</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-[760px]">
       {/* Search bar */}
@@ -76,13 +120,6 @@ export function SearchInterface() {
           </button>
         ))}
       </div>
-
-      {!hasSearched && (
-        <div className="text-center py-16 text-[var(--text-sec)]">
-          <p className="text-sm">Search across the Sefaria library — Tanakh, Talmud, Midrash, Halakhah, and more.</p>
-          <p className="text-xs mt-2">Powered by Sefaria&apos;s ElasticSearch with Hebrew morphological analysis.</p>
-        </div>
-      )}
 
       {hasSearched && !isSearching && (
         <p className="text-sm text-[var(--text-sec)] mb-4">

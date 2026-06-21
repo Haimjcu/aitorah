@@ -2,7 +2,11 @@ import type { Metadata } from 'next'
 import { SearchInterface } from '@/components/search/SearchInterface'
 import { AppPageHeader } from '@/components/layout/AppPageHeader'
 
-export const metadata: Metadata = { title: 'Torah Search — AI Torah' }
+export const metadata: Metadata = {
+  title: 'Torah Search',
+  description: 'Search across the Sefaria library — Tanakh, Talmud, Midrash, and Halakhah. Full-text search with Hebrew morphological analysis and category filtering.',
+  alternates: { canonical: '/search' },
+}
 
 export default function SearchPage() {
   return (

@@ -32,7 +32,7 @@ export function MobileMenuDrawer({ open, onClose }: { open: boolean; onClose: ()
         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
           <Link href="/" onClick={onClose} className="flex items-center gap-2.5 font-serif text-lg font-bold text-[var(--primary)]">
             <LogoMark size={24} />
-            AI Torah
+            Torah
           </Link>
           <button
             onClick={onClose}
@@ -54,11 +54,6 @@ export function MobileMenuDrawer({ open, onClose }: { open: boolean; onClose: ()
             </Link>
           ))}
         </nav>
-        <div className="p-3 border-t border-[var(--border)] flex justify-center">
-          <a href="https://www.sefaria.org/texts" target="_blank" rel="noopener noreferrer">
-            <img src="/powered-by-sefaria.png" alt="Powered by Sefaria" className="h-8" />
-          </a>
-        </div>
       </div>
     </div>
   )
