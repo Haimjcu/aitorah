@@ -13,7 +13,7 @@ export default function StudyPage() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <AppPageHeader title="Study Partner" />
-      <div className="flex-1 overflow-hidden p-6">
+      <div className="flex-1 overflow-hidden">
         <Suspense>
           <ChatInterface />
         </Suspense>
