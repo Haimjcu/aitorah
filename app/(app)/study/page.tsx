@@ -12,7 +12,9 @@ export const metadata: Metadata = {
 export default function StudyPage() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      <AppPageHeader title="Study Partner" />
+      <div className="hidden md:block">
+        <AppPageHeader title="Study Partner" />
+      </div>
       <div className="flex-1 overflow-hidden">
         <Suspense>
           <ChatInterface />

@@ -1,11 +1,10 @@
 import NextAuth, { type NextAuthConfig } from 'next-auth'
 import Google from 'next-auth/providers/google'
 import Credentials from 'next-auth/providers/credentials'
-import { DrizzleAdapter } from '@auth/drizzle-adapter'
 import { eq } from 'drizzle-orm'
 import bcrypt from 'bcryptjs'
 import { getDb } from './db'
-import { users, accounts, authSessions, verificationTokens } from './db/schema'
+import { users } from './db/schema'
 
 const hasDb = !!process.env.DATABASE_URL
 
@@ -40,24 +39,28 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
-  adapter: hasDb
-    ? DrizzleAdapter(getDb(), {
-        usersTable: users,
-        accountsTable: accounts,
-        sessionsTable: authSessions,
-        verificationTokensTable: verificationTokens,
-      })
-    : undefined,
   session: { strategy: 'jwt' },
   providers,
   callbacks: {
-    jwt({ token, user }) {
-      if (user) token.id = user.id
+    jwt({ token, user, profile }) {
+      if (user) {
+        token.id = user.id
+        token.name = user.name
+        token.email = user.email
+      }
+      if (profile) {
+        token.name = profile.name
+        token.email = profile.email
+        token.picture = profile.picture
+      }
       return token
     },
     session({ session, token }) {
-      if (session.user && token.id) {
-        session.user.id = token.id as string
+      if (session.user) {
+        if (token.sub) session.user.id = token.sub
+        if (token.name) session.user.name = token.name as string
+        if (token.email) session.user.email = token.email as string
+        if (token.picture) session.user.image = token.picture as string
       }
       return session
     },

@@ -3,7 +3,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
+import Link from 'next/link'
 import { CopyButton } from '@/components/ui/CopyButton'
+import { LogoMark } from '@/components/ui/LogoMark'
 import { AuthModal } from './AuthModal'
 
 type Source = { ref: string; type: string; similarity: number; hebrew: string; english: string }
@@ -63,7 +65,7 @@ export function ChatInterface() {
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [authModalTab, setAuthModalTab] = useState<'signin' | 'signup'>('signin')
   const [showAuthPrompt, setShowAuthPrompt] = useState(false)
-  const [mobileSessionsOpen, setMobileSessionsOpen] = useState(false)
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
 
   currentSessionIdRef.current = currentSessionId
 
@@ -259,7 +261,7 @@ export function ChatInterface() {
     setInput('')
     setOpenSources([])
     setShowAuthPrompt(false)
-    setMobileSessionsOpen(false)
+    setMobileDrawerOpen(false)
   }, [isStreaming])
 
   const loadSession = useCallback(async (id: string) => {
@@ -272,7 +274,7 @@ export function ChatInterface() {
       setMessages(data.messages)
       setOpenSources([])
       setShowAuthPrompt(false)
-      setMobileSessionsOpen(false)
+      setMobileDrawerOpen(false)
     } catch {
       // ignore
     }
@@ -382,19 +384,44 @@ export function ChatInterface() {
           {sessionSidebarContent}
         </div>
 
-        {/* Mobile sessions drawer */}
-        {mobileSessionsOpen && (
+        {/* Mobile combined drawer: sessions + nav */}
+        {mobileDrawerOpen && (
           <div className="fixed inset-0 z-[100] md:hidden">
-            <div className="absolute inset-0 bg-black/40" onClick={() => setMobileSessionsOpen(false)} />
+            <div className="absolute inset-0 bg-black/40" onClick={() => setMobileDrawerOpen(false)} />
             <div className="absolute top-0 left-0 bottom-0 w-72 bg-white shadow-xl flex flex-col">
+              {/* Header */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
-                <span className="font-semibold text-sm">Sessions</span>
-                <button onClick={() => setMobileSessionsOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-sec)] hover:bg-[var(--surface-alt)]">
+                <Link href="/" onClick={() => setMobileDrawerOpen(false)} className="flex items-center gap-2 font-serif text-lg font-bold text-[var(--primary)]">
+                  <LogoMark size={24} />
+                  Torah
+                </Link>
+                <button onClick={() => setMobileDrawerOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-sec)] hover:bg-[var(--surface-alt)]">
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
               </div>
+
+              {/* Sessions section */}
               <div className="flex-1 flex flex-col overflow-hidden">
                 {sessionSidebarContent}
+              </div>
+
+              {/* Divider + Nav links */}
+              <div className="border-t border-[var(--border)] px-3 py-3">
+                {[
+                  { label: 'Study Partner', href: '/study' },
+                  { label: 'Torah Search', href: '/search' },
+                  { label: 'Community', href: '/community' },
+                  { label: 'Contact', href: '/contact' },
+                ].map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMobileDrawerOpen(false)}
+                    className="block px-3 py-2 rounded-lg text-sm text-[var(--text-sec)] hover:bg-[var(--surface-alt)] hover:text-[var(--text)] transition-all"
+                  >
+                    {item.label}
+                  </Link>
+                ))}
               </div>
             </div>
           </div>
@@ -402,24 +429,17 @@ export function ChatInterface() {
 
         {/* Main content */}
         <div className="flex-1 flex flex-col min-w-0">
-          {/* Mobile header with sessions button */}
-          <div className="flex items-center gap-2 px-4 py-2 md:hidden border-b border-[var(--border)]">
+          {/* Mobile header */}
+          <div className="flex items-center gap-1.5 px-2 py-2 md:hidden border-b border-[var(--border)]">
             <button
-              onClick={() => setMobileSessionsOpen(true)}
-              className="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-sec)] hover:bg-[var(--surface-alt)] transition-all"
-              title="Sessions"
+              onClick={() => setMobileDrawerOpen(true)}
+              className="w-9 h-9 flex items-center justify-center rounded-lg text-[var(--text-sec)] hover:bg-[var(--surface-alt)] transition-all"
+              aria-label="Open menu"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
             </button>
-            <span className="text-sm font-medium text-[var(--text-sec)]">Study Partner</span>
-            {!isAuthenticated && (
-              <button
-                onClick={() => openAuth('signin')}
-                className="ml-auto text-xs text-[var(--primary)] font-medium hover:underline"
-              >
-                Sign in
-              </button>
-            )}
+            <span className="text-sm font-semibold text-[var(--primary)] flex-1 text-center font-serif">Study Partner</span>
+            <div className="w-9" />
           </div>
 
           {/* Welcome landing or chat */}
