@@ -461,6 +461,6 @@ In Sanity Studio → API → Webhooks:
 
 | Webhook | Filter | URL | Purpose |
 |---|---|---|---|
-| Content revalidate | `_type in ["blogPost","appListing","event","resource","siteSettings"]` | `https://aitorah.com/api/webhooks/sanity` | Trigger Next.js ISR revalidation |
+| Content revalidate | `_type in ["blogPost","appListing","event","resource","siteSettings"]` | `https://aitorah.ai/api/webhooks/sanity` | Trigger Next.js ISR revalidation |
 
 Secret: set `SANITY_WEBHOOK_SECRET` in Railway and Sanity webhook config.

@@ -1,6 +1,6 @@
 # AI Torah — Architecture Document
 
-> Last updated: 2026-06-21
+> Last updated: 2026-06-23
 
 ---
 
@@ -17,7 +17,7 @@ The target audience is Torah scholars, developers building Torah AI tools, and e
 ### 2.1 High-Level Overview
 
 - **AI Study Partner** — Conversational Torah study powered by Claude (Anthropic). Users ask questions; the system retrieves relevant sources from Sefaria, then streams an AI-generated answer with citations. Sessions are persisted to PostgreSQL for authenticated users.
-- **Authentication** — Email+password and Google OAuth sign-in via NextAuth v5 (Auth.js). JWT session strategy with PostgreSQL-backed user storage via Drizzle adapter. Anonymous users can try one chat exchange before being prompted to sign in.
+- **Authentication** — Email+password and Google OAuth sign-in via NextAuth v5 (Auth.js). Pure JWT session strategy (no database adapter for OAuth — Google sign-in stores user data entirely in the JWT). Credentials provider queries PostgreSQL directly for email/password login. Anonymous users can try one chat exchange before being prompted to sign in.
 - **Session Persistence** — Authenticated users' chat sessions are saved to PostgreSQL with auto-save on each response. Sessions appear in a left sidebar (Claude Desktop-style) with load, delete, and new session controls.
 - **Jewish Calendar (Hebcal)** — Real-time calendar data via Hebcal REST APIs: weekly parasha with full leyning, daily learning schedules (Daf Yomi, Mishna Yomi, etc.), Shabbat/candle-lighting times, halachic zmanim, upcoming holidays, and Hebrew↔Gregorian date conversion. IP-based geolocation detects Israel vs. Diaspora for parasha/schedule differences.
 - **Torah Search** — Full-text search across the Sefaria library (Tanakh, Mishnah, Gemara, Rishonim, Acharonim) via Sefaria's ElasticSearch API. Supports category filtering.
@@ -128,9 +128,9 @@ The target audience is Torah scholars, developers building Torah AI tools, and e
 - `lib/db/qa.ts` — Q&A pair CRUD (save, find similar, get by slug, list recent)
 - `lib/db/index.ts` — Drizzle/pg connection pool
 - `lib/db/schema.ts` — Drizzle table definitions (qa_pairs, users, accounts, auth_sessions, study_sessions, verification_tokens)
-- `lib/auth.ts` — NextAuth v5 configuration (Google + Credentials providers, Drizzle adapter, JWT strategy)
+- `lib/auth.ts` — NextAuth v5 configuration (Google + Credentials providers, pure JWT strategy, no database adapter)
 - `lib/ratelimit.ts` — Upstash Redis rate limiting
-- `components/study/ChatInterface.tsx` — Chat UI with auth-aware session sidebar, mobile drawer, auth prompt
+- `components/study/ChatInterface.tsx` — Chat UI with auth-aware session sidebar, combined mobile drawer (sessions + nav), auth prompt
 - `components/study/AuthModal.tsx` — Sign in / sign up modal (email+password, Google OAuth)
 - `components/providers/AuthProvider.tsx` — NextAuth SessionProvider wrapper
 - `components/ui/CopyButton.tsx` — Copy-to-clipboard button with checkmark feedback
@@ -312,7 +312,7 @@ aitorah/
 │   │   └── SearchInterface.tsx       # Search UI with filters, result cards, copy button
 │   ├── study/
 │   │   ├── AuthModal.tsx             # Sign in / sign up modal (email+password, Google OAuth)
-│   │   └── ChatInterface.tsx         # Chat UI with auth-aware session sidebar, mobile drawer
+│   │   └── ChatInterface.tsx         # Chat UI with auth-aware session sidebar, combined mobile drawer (sessions + nav)
 │   └── ui/
 │       ├── BuildingBanner.tsx        # "We're building something new" CTA banner
 │       ├── CopyButton.tsx            # Copy-to-clipboard button with checkmark feedback
@@ -320,7 +320,7 @@ aitorah/
 ├── lib/
 │   ├── ai/
 │   │   └── prompts.ts               # System prompt builder for study partner
-│   ├── auth.ts                       # NextAuth v5 config (Google + Credentials, Drizzle adapter, JWT)
+│   ├── auth.ts                       # NextAuth v5 config (Google + Credentials, pure JWT, no DB adapter)
 │   ├── db/
 │   │   ├── index.ts                  # Drizzle + pg Pool singleton
 │   │   ├── qa.ts                     # Q&A pair CRUD operations
@@ -380,7 +380,7 @@ aitorah/
 ├── DEPLOY.md                         # Deployment instructions
 ├── railway.json                      # Railway deployment config
 ├── drizzle.config.ts                 # Drizzle Kit config
-├── next.config.mjs                   # Next.js config (standalone output, Sanity images)
+├── next.config.mjs                   # Next.js config (standalone output, Sanity images, devIndicators disabled)
 ├── tailwind.config.ts                # Tailwind config (custom theme)
 ├── tsconfig.json                     # TypeScript config
 ├── postcss.config.mjs                # PostCSS config
@@ -393,19 +393,19 @@ aitorah/
 
 | Component / Module | File | Purpose | Imported By |
 |---|---|---|---|
-| `LogoMark` | `components/ui/LogoMark.tsx` | Renders the AI Torah logo (dark/light variants) | `Navbar`, `Sidebar`, `MobileMenu`, `Footer` |
+| `LogoMark` | `components/ui/LogoMark.tsx` | Renders the AI Torah logo (dark/light variants) | `Navbar`, `Sidebar`, `MobileMenu`, `Footer`, `ChatInterface` |
 | `CopyButton` | `components/ui/CopyButton.tsx` | Copy-to-clipboard with checkmark feedback | `ChatInterface`, `SearchInterface` |
 | `BuildingBanner` | `components/ui/BuildingBanner.tsx` | CTA banner linking to `/contact` | Not currently imported (available for use) |
 | `AuthProvider` | `components/providers/AuthProvider.tsx` | NextAuth `SessionProvider` wrapper | `app/layout.tsx` (root) |
 | `AuthModal` | `components/study/AuthModal.tsx` | Sign in / sign up modal (email + Google OAuth) | `ChatInterface` |
 | `AppShell` | `components/layout/AppShell.tsx` | Full-height `Sidebar + content` container | `app/(app)/layout.tsx` |
-| `AppPageHeader` | `components/layout/AppPageHeader.tsx` | Page header with title + mobile menu | `study/page.tsx`, `search/page.tsx` |
+| `AppPageHeader` | `components/layout/AppPageHeader.tsx` | Page header with title + mobile menu | `study/page.tsx` (desktop only), `search/page.tsx` |
 | `Navbar` | `components/layout/Navbar.tsx` | Top navigation for marketing pages | `app/(marketing)/layout.tsx` |
 | `Footer` | `components/layout/Footer.tsx` | Site-wide footer with Sefaria + Hebcal attribution links | `app/layout.tsx` (root) |
 | `Sidebar` | `components/layout/Sidebar.tsx` | Left sidebar navigation for app pages | `AppShell` |
 | `MobileMenu` | `components/layout/MobileMenu.tsx` | Hamburger button + drawer overlay | `Navbar`, `AppPageHeader` |
-| `auth` / `handlers` | `lib/auth.ts` | NextAuth v5 config (JWT, Google + Credentials) | `api/auth/[...nextauth]`, `api/sessions/*`, `api/auth/signup` |
-| `getDb()` | `lib/db/index.ts` | Returns Drizzle ORM instance with pg Pool | `lib/db/qa.ts`, `lib/auth.ts`, session API routes |
+| `auth` / `handlers` | `lib/auth.ts` | NextAuth v5 config (pure JWT, Google + Credentials) | `api/auth/[...nextauth]`, `api/sessions/*`, `api/auth/signup` |
+| `getDb()` | `lib/db/index.ts` | Returns Drizzle ORM instance with pg Pool | `lib/db/qa.ts`, `lib/auth.ts` (credentials only), session API routes |
 | `checkRateLimit()` | `lib/ratelimit.ts` | IP-based rate limiting via Upstash Redis | `app/api/chat/route.ts` |
 | `classifyIntent()` | `lib/rag/intent.ts` | Classifies user question into structured intent (incl. 7 calendar types) | `app/api/chat/route.ts` |
 | `retrieve()` | `lib/rag/retrieval.ts` | Full RAG retrieval pipeline (accepts optional pre-classified intent) | `app/api/chat/route.ts` |
@@ -581,11 +581,17 @@ App Layout (app/(app)/layout.tsx)
             └── AppPageHeader (title + mobile menu)
 
 Study Page (/study) — ChatInterface internal layout:
+├── AppPageHeader (desktop only — hidden on mobile via `hidden md:block`)
 ├── Session sidebar (w-60, hidden on mobile)
 │   ├── "New Session" button
 │   ├── Session list (titles, timestamps, delete buttons)
 │   └── Bottom: sign-in button or user avatar + sign out
-├── Mobile: sessions drawer (slide-out, triggered by clock icon)
+├── Mobile: single combined drawer (triggered by hamburger in mobile header)
+│   ├── Top: Logo header
+│   ├── Sessions section (New Session button, session list, sign-in/user info)
+│   ├── Divider
+│   └── Nav links (Study Partner, Torah Search, Community, Contact)
+├── Mobile header: hamburger (opens combined drawer) | "Study Partner" title
 └── Main chat area
     ├── Welcome landing (centered, shown when no messages)
     └── Chat panel (messages, sources, copy buttons, auth prompt, input)
@@ -594,15 +600,15 @@ Study Page (/study) — ChatInterface internal layout:
 #### Navigation
 
 - **Marketing pages** (`/`, `/community`, `/contact`): Top `Navbar` with horizontal links. Mobile: hamburger opens `MobileMenuDrawer` (left slide-out).
-- **App pages** (`/study`, `/search`): Left `Sidebar` (220px, hidden on mobile). Mobile: `AppPageHeader` includes a hamburger that opens the same `MobileMenuDrawer`.
-- **Study page** additionally has its own session sidebar (240px) within ChatInterface, separate from the app Sidebar.
-- Nav items are defined as constants in `Sidebar.tsx` (line 7), `MobileMenu.tsx` (line 6), and `Navbar.tsx` (line 22).
+- **App pages** (`/search`): Left `Sidebar` (220px, hidden on mobile). Mobile: `AppPageHeader` includes a hamburger that opens the same `MobileMenuDrawer`.
+- **Study page** (`/study`): Left `Sidebar` (220px, hidden on mobile) + a session sidebar (240px) within ChatInterface. On mobile, `AppPageHeader` is hidden; ChatInterface renders its own mobile header (hamburger + title) and a **combined drawer** that merges the session list (top) with site navigation links (bottom), separated by a divider. This eliminates the need for two separate drawers on mobile.
+- Nav items are defined as constants in `Sidebar.tsx` (line 7), `MobileMenu.tsx` (line 6), `Navbar.tsx` (line 22), and inline in `ChatInterface.tsx` (mobile combined drawer).
 - No hard auth guards — all pages are publicly accessible. The study page prompts sign-in after first chat exchange but doesn't force redirect.
 
 #### State Management
 
 No global state management library. Auth state is provided by NextAuth's `SessionProvider` (context-based). All other state is local to components via React `useState`:
-- `ChatInterface`: messages array, input text, streaming state, open source panels, session list, current session ID, auth modal visibility, mobile drawer state
+- `ChatInterface`: messages array, input text, streaming state, open source panels, session list, current session ID, auth modal visibility, combined mobile drawer state (single `mobileDrawerOpen` controls both sessions and nav)
 - `SearchInterface`: query, active filter, results, search state
 - `ContactPage`: form fields, submission state
 - `HeroChat`: input text
@@ -744,7 +750,7 @@ All session routes require authentication (return `401` if not signed in) and en
 | `UPSTASH_REDIS_REST_URL` | No | `lib/ratelimit.ts:5` | Upstash Redis URL for rate limiting |
 | `UPSTASH_REDIS_REST_TOKEN` | No | `lib/ratelimit.ts:5` | Upstash Redis auth token |
 | `NEXTAUTH_SECRET` | Yes (for auth) | `lib/auth.ts` | JWT signing secret for NextAuth (generate with `openssl rand -base64 32`) |
-| `NEXTAUTH_URL` | Yes (for auth) | `lib/auth.ts`, `app/robots.ts`, `app/sitemap.ts` | Full URL with protocol (e.g. `https://aitorah.com`). `trustHost: true` is set as fallback. |
+| `NEXTAUTH_URL` | Yes (for auth) | `lib/auth.ts`, `app/robots.ts`, `app/sitemap.ts` | Full URL with protocol (e.g. `https://aitorah.ai`). `trustHost: true` is set as fallback. |
 | `GOOGLE_CLIENT_ID` | No | `lib/auth.ts` | Google OAuth client ID (hides Google button if missing) |
 | `GOOGLE_CLIENT_SECRET` | No | `lib/auth.ts` | Google OAuth client secret |
 | `NEXT_PUBLIC_SANITY_PROJECT_ID` | No (unused) | `lib/sanity/client.ts:4` | Sanity project ID |
@@ -884,7 +890,7 @@ npx drizzle-kit push
 
 | Branch | Environment | URL |
 |---|---|---|
-| `main` | Production | `aitorah.com` (custom domain) / Railway-provided URL |
+| `main` | Production | `aitorah.ai` (custom domain) / Railway-provided URL |
 
 Railway auto-deploys on every push to `main`.
 
@@ -911,7 +917,7 @@ The start command copies static assets and public files into the standalone buil
 | `ANTHROPIC_API_KEY` | Required — chat won't work without it |
 | `RESEND_API_KEY` | Required — contact form won't send emails |
 | `CONTACT_EMAIL` | Required — where contact emails are delivered |
-| `NEXTAUTH_URL` | Set to `https://aitorah.com` |
+| `NEXTAUTH_URL` | Set to `https://aitorah.ai` |
 | `NEXTAUTH_SECRET` | Generate with `openssl rand -base64 32` |
 
 ### Optional Environment Variables (Production)
@@ -930,7 +936,7 @@ The start command copies static assets and public files into the standalone buil
 git push origin main
 
 # Verify
-curl https://aitorah.com/api/health
+curl https://aitorah.ai/api/health
 # → {"status":"ok","timestamp":"..."}
 ```
 
@@ -970,8 +976,8 @@ DATABASE_URL=<railway-url> npx drizzle-kit push
 |---|---|---|---|
 | Home page | **Working** | Full marketing page with hero chat, "Ask AI Torah" CTAs, OG image | — |
 | AI Study Partner | **Working** | RAG pipeline, streaming chat, source panel, session sidebar, copy button | — |
-| Authentication | **Working** (needs DB) | NextAuth v5 (Email+Google), sign up/in modals, JWT sessions, Drizzle adapter | Email verification, password reset |
-| Session Persistence | **Working** (needs DB) | Auto-save, session list sidebar, load/delete/new, mobile drawer, anonymous→auth bridge | — |
+| Authentication | **Working** (Google needs env vars, email/pw needs DB) | NextAuth v5 (Email+Google), sign up/in modals, pure JWT sessions (no DB adapter for OAuth) | Email verification, password reset |
+| Session Persistence | **Working** (needs DB) | Auto-save, session list sidebar, load/delete/new, combined mobile drawer (sessions + nav), anonymous→auth bridge | — |
 | Jewish Calendar | **Working** | Hebcal integration (parasha, learning, zmanim, holidays, dates), IP geolocation, Israel/Diaspora detection | User-selectable location override, persistent location preferences |
 | Torah Search | **Working** | Sefaria API search with filters, copy button | Local vector search (pgvector) |
 | Q&A Cache | **Working** (needs DB) | Save/retrieve by exact match | Semantic similarity matching |

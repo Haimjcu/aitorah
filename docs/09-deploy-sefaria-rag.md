@@ -143,13 +143,13 @@ After Railway deploys (typically 2-3 minutes):
 
 **Test search:**
 ```bash
-curl 'https://aitorah.com/api/search?q=shabbat&limit=3'
+curl 'https://aitorah.ai/api/search?q=shabbat&limit=3'
 ```
 Expected: JSON with real Sefaria results (refs, Hebrew text, English translations).
 
 **Test chat:**
 ```bash
-curl -X POST 'https://aitorah.com/api/chat' \
+curl -X POST 'https://aitorah.ai/api/chat' \
   -H 'Content-Type: application/json' \
   -d '{"messages":[{"role":"user","content":"What does Genesis 1:1 say?"}]}'
 ```
@@ -157,7 +157,7 @@ Expected: Stream with `<!--SOURCES:[...]-->` prefix followed by Claude's respons
 
 **Test Q&A cache:**
 ```bash
-curl 'https://aitorah.com/api/answers'
+curl 'https://aitorah.ai/api/answers'
 ```
 Expected: `{"items":[]}` initially (no cached Q&A pairs yet). After a few chat queries, cached pairs will appear.
 

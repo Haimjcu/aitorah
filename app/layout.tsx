@@ -16,7 +16,7 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://aitorah.com'),
+  metadataBase: new URL('https://aitorah.ai'),
   title: {
     default: 'AI Torah — Explore Torah With The Help Of Artificial Intelligence',
     template: '%s — AI Torah',
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     siteName: 'AI Torah',
     title: 'AI Torah — Explore Torah With The Help Of Artificial Intelligence',
     description: 'AI-powered Torah study partner and semantic search across Tanakh, Talmud, Mishnah, and more. Ask questions, get cited answers from authentic Jewish sources.',
-    url: 'https://aitorah.com',
+    url: 'https://aitorah.ai',
   },
   twitter: {
     card: 'summary_large_image',
@@ -44,10 +44,10 @@ const jsonLd = {
   '@graph': [
     {
       '@type': 'Organization',
-      '@id': 'https://aitorah.com/#organization',
+      '@id': 'https://aitorah.ai/#organization',
       name: 'AI Torah',
-      url: 'https://aitorah.com',
-      logo: 'https://aitorah.com/logo-transparent.png',
+      url: 'https://aitorah.ai',
+      logo: 'https://aitorah.ai/logo-transparent.png',
       description: 'AI-powered Torah study partner and semantic search across authentic Jewish sources.',
       sameAs: [
         'https://discord.gg/7aXpVR6AK',
@@ -57,13 +57,13 @@ const jsonLd = {
     },
     {
       '@type': 'WebSite',
-      '@id': 'https://aitorah.com/#website',
-      url: 'https://aitorah.com',
+      '@id': 'https://aitorah.ai/#website',
+      url: 'https://aitorah.ai',
       name: 'AI Torah',
-      publisher: { '@id': 'https://aitorah.com/#organization' },
+      publisher: { '@id': 'https://aitorah.ai/#organization' },
       potentialAction: {
         '@type': 'SearchAction',
-        target: 'https://aitorah.com/search?q={search_term_string}',
+        target: 'https://aitorah.ai/search?q={search_term_string}',
         'query-input': 'required name=search_term_string',
       },
     },

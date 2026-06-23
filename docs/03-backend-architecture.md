@@ -243,7 +243,7 @@ Save user rating/correction on a study partner response.
    c. Route validates NextAuth session
    d. Builds SSO payload: nonce, email, username, external_id
    e. Signs with HMAC-SHA256 using DISCOURSE_SSO_SECRET
-   f. Redirects to https://community.aitorah.com/session/sso_login
+   f. Redirects to https://community.aitorah.ai/session/sso_login
 5. Discourse creates/updates user, sets its own session cookie
 ```
 
@@ -308,7 +308,7 @@ Run once during Railway deployment with: `npx tsx scripts/ingest-torah.ts`
 | `DATABASE_URL` | Railway PostgreSQL connection string |
 | `REDIS_URL` | Railway Redis connection string |
 | `NEXTAUTH_SECRET` | NextAuth JWT signing secret |
-| `NEXTAUTH_URL` | Full URL of the app (e.g. https://aitorah.com) |
+| `NEXTAUTH_URL` | Full URL of the app (e.g. https://aitorah.ai) |
 | `GOOGLE_CLIENT_ID` | Google OAuth |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth |
 | `DISCORD_CLIENT_ID` | Discord OAuth |

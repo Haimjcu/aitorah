@@ -6,10 +6,10 @@ All services live in a single Railway **Project** named `ai-torah`. Services com
 
 | Service | Template / Image | Public URL |
 |---|---|---|
-| `aitorah-web` | Nixpacks (Next.js) | `aitorah.com` (custom domain) |
+| `aitorah-web` | Nixpacks (Next.js) | `aitorah.ai` (custom domain) |
 | `aitorah-db` | Railway PostgreSQL | Private only |
 | `aitorah-redis` | Railway Redis | Private only |
-| `aitorah-discourse` | `discourse/discourse_docker` | `community.aitorah.com` |
+| `aitorah-discourse` | `discourse/discourse_docker` | `community.aitorah.ai` |
 | `aitorah-discourse-db` | Railway PostgreSQL | Private only |
 
 ---
@@ -44,7 +44,7 @@ All services live in a single Railway **Project** named `ai-torah`. Services com
 4. Set the **Start Command** to: `node .next/standalone/server.js`
 5. Set the **Build Command** to: `npm run build`
 6. Add all environment variables (see Section 5)
-7. Under **Networking → Public Networking**, add custom domain: `aitorah.com`
+7. Under **Networking → Public Networking**, add custom domain: `aitorah.ai`
 
 #### `railway.json` (project root)
 ```json
@@ -124,13 +124,13 @@ Discourse requires a VM-like environment. On Railway, deploy it as a Docker serv
    DISCOURSE_DB_NAME=${{aitorah-discourse-db.PGDATABASE}}
    DISCOURSE_DB_USERNAME=${{aitorah-discourse-db.PGUSER}}
    DISCOURSE_DB_PASSWORD=${{aitorah-discourse-db.PGPASSWORD}}
-   DISCOURSE_HOSTNAME=community.aitorah.com
+   DISCOURSE_HOSTNAME=community.aitorah.ai
    DISCOURSE_SMTP_ADDRESS=smtp.sendgrid.net
    DISCOURSE_SMTP_USER_NAME=apikey
    DISCOURSE_SMTP_PASSWORD=<sendgrid_api_key>
    DISCOURSE_DEVELOPER_EMAILS=haim@justconnectus.com
    ```
-4. Add custom domain: `community.aitorah.com`
+4. Add custom domain: `community.aitorah.ai`
 5. After boot, SSH into the Discourse container and run:
    ```bash
    /var/www/discourse/bin/discourse-setup
@@ -139,7 +139,7 @@ Discourse requires a VM-like environment. On Railway, deploy it as a Docker serv
 ### 4.3 Configure Discourse SSO
 In Discourse Admin → Login:
 - Enable `discourse_connect_enabled`
-- Set `discourse_connect_url` to `https://aitorah.com/api/discourse/sso`
+- Set `discourse_connect_url` to `https://aitorah.ai/api/discourse/sso`
 - Set `discourse_connect_secret` to match `DISCOURSE_SSO_SECRET` env var
 - Disable local login (optional — force SSO only)
 
@@ -154,7 +154,7 @@ Set all of these in Railway's `aitorah-web` service under **Variables**.
 DATABASE_URL=${{aitorah-db.DATABASE_URL}}
 REDIS_URL=${{aitorah-redis.REDIS_URL}}
 NEXTAUTH_SECRET=<generate with: openssl rand -base64 32>
-NEXTAUTH_URL=https://aitorah.com
+NEXTAUTH_URL=https://aitorah.ai
 ANTHROPIC_API_KEY=<from console.anthropic.com>
 OPENAI_API_KEY=<from platform.openai.com>
 NEXT_PUBLIC_SANITY_PROJECT_ID=<from sanity.io>
@@ -181,7 +181,7 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=<from dashboard.stripe.com>
 ```
 DISCOURSE_SSO_SECRET=<generate with: openssl rand -base64 32>
 DISCOURSE_API_KEY=<from Discourse Admin → API>
-DISCOURSE_URL=https://community.aitorah.com
+DISCOURSE_URL=https://community.aitorah.ai
 SANITY_WEBHOOK_SECRET=<from sanity.io webhook config>
 ```
 
@@ -197,13 +197,13 @@ RAILWAY_ENVIRONMENT
 
 Railway provides free TLS via Let's Encrypt for all custom domains.
 
-1. `aitorah-web` → Networking → Add Domain → `aitorah.com`
+1. `aitorah-web` → Networking → Add Domain → `aitorah.ai`
 2. Add CNAME record at your DNS provider:
    ```
    CNAME  @  <railway-provided-cname>.railway.app
    CNAME  www  <railway-provided-cname>.railway.app
    ```
-3. `aitorah-discourse` → Add Domain → `community.aitorah.com`
+3. `aitorah-discourse` → Add Domain → `community.aitorah.ai`
    ```
    CNAME  community  <discourse-service-cname>.railway.app
    ```
@@ -217,8 +217,8 @@ Railway auto-deploys on every push to `main`. For a safer flow:
 
 ### Recommended Branch Strategy
 ```
-main     → Production (aitorah.com)
-staging  → Staging Railway environment (staging.aitorah.com)
+main     → Production (aitorah.ai)
+staging  → Staging Railway environment (staging.aitorah.ai)
 ```
 
 ### Railway Environments

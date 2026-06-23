@@ -89,7 +89,7 @@ git push origin main
 | `RESEND_API_KEY` | `re_...` | From resend.com |
 | `CONTACT_EMAIL` | `haim@aitorah.ai` | Where contact form submissions go |
 | `NEXTAUTH_SECRET` | (generate) | `openssl rand -base64 32` |
-| `NEXTAUTH_URL` | `https://aitorah.com` | Or your Railway-provided URL for now |
+| `NEXTAUTH_URL` | `https://aitorah.ai` | Or your Railway-provided URL for now |
 
 These are the only env vars needed for the features that currently work.
 
@@ -115,7 +115,7 @@ Railway assigns a URL like `aitorah-web-production.up.railway.app`. No DNS setup
 
 ### Option B: Custom domain
 
-1. In the service settings → **Networking** → **Public Networking** → add `aitorah.com`
+1. In the service settings → **Networking** → **Public Networking** → add `aitorah.ai`
 2. At your DNS provider, add:
    ```
    CNAME  @    <railway-provided-cname>.railway.app
