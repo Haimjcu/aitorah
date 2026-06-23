@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { CopyButton } from '@/components/ui/CopyButton'
 
 type Result = {
@@ -13,31 +13,43 @@ type Result = {
   sefaria_url?: string
 }
 
-const FILTERS = ['All Texts', 'Tanakh', 'Mishnah', 'Gemara', 'Rishonim', 'Acharonim']
+const FILTERS = [
+  'All Texts', 'Tanakh', 'Talmud', 'Mishnah', 'Midrash', 'Halakhah',
+  'Liturgy', 'Kabbalah', 'Chasidut', 'Jewish Thought', 'Musar',
+  'Tosefta', 'Tanakh Commentary', 'Talmud Commentary', 'Mishnah Commentary',
+  'Targum', 'Reference', 'Second Temple',
+]
+
+const EXAMPLES = ['love your neighbor', 'Shabbat candles', 'Genesis 1:1', 'lashon hara', 'teshuvah Rambam']
 
 export function SearchInterface() {
   const [query, setQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState('All Texts')
-  const [results, setResults] = useState<Result[]>([])
+  const [allResults, setAllResults] = useState<Result[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
-  const [total, setTotal] = useState(0)
 
-  const handleSearch = async () => {
-    if (!query.trim()) return
+  const filteredResults = useMemo(() => {
+    if (activeFilter === 'All Texts') return allResults
+    return allResults.filter((r) => r.source === activeFilter)
+  }, [allResults, activeFilter])
+
+  const handleSearch = async (overrideQuery?: string) => {
+    const q = overrideQuery ?? query
+    if (!q.trim()) return
+    if (overrideQuery) setQuery(overrideQuery)
+    setActiveFilter('All Texts')
     setIsSearching(true)
     setHasSearched(true)
     try {
-      const params = new URLSearchParams({ q: query, limit: '20' })
-      if (activeFilter !== 'All Texts') params.set('source', activeFilter.toLowerCase())
+      const params = new URLSearchParams({ q, limit: '50' })
       const res = await fetch(`/api/search?${params}`)
       if (res.ok) {
         const data = await res.json()
-        setResults(data.results ?? [])
-        setTotal(data.total ?? 0)
+        setAllResults(data.results ?? [])
       }
     } catch {
-      setResults([])
+      setAllResults([])
     } finally {
       setIsSearching(false)
     }
@@ -48,7 +60,7 @@ export function SearchInterface() {
       <div className="flex items-center justify-center h-full">
         <div className="w-full max-w-[760px] text-center">
           <h2 className="text-2xl font-serif font-bold text-[var(--primary)] mb-2">Torah Search</h2>
-          <p className="text-sm text-[var(--text-sec)] mb-6">Search across the Sefaria library — Tanakh, Talmud, Midrash, Halakhah, and more.</p>
+          <p className="text-sm text-[var(--text-sec)] mb-6">Search across the full Sefaria library — Tanakh, Talmud, Midrash, Halakhah, and more. Enter a topic, phrase, or source reference in English or Hebrew.</p>
 
           <div className="flex bg-white border border-[var(--border)] rounded-xl overflow-hidden focus-within:border-[var(--primary-light)] transition-colors mb-3">
             <input
@@ -60,7 +72,7 @@ export function SearchInterface() {
               className="flex-1 border-none outline-none px-4 py-3 text-sm font-sans"
             />
             <button
-              onClick={handleSearch}
+              onClick={() => handleSearch()}
               disabled={isSearching}
               className="flex items-center gap-1.5 px-5 bg-[var(--primary)] text-white text-sm font-medium hover:bg-[var(--primary-light)] disabled:opacity-50 transition-all"
             >
@@ -70,18 +82,19 @@ export function SearchInterface() {
           </div>
 
           <div className="flex gap-2 flex-wrap justify-center mb-5">
-            {FILTERS.map((f) => (
+            <span className="px-4 py-1.5 rounded-full text-sm border bg-[var(--primary)] text-white border-[var(--primary)]">All Texts</span>
+            {EXAMPLES.map((example) => (
               <button
-                key={f}
-                onClick={() => setActiveFilter(f)}
-                className={`px-4 py-1.5 rounded-full text-sm border transition-all ${activeFilter === f ? 'bg-[var(--primary)] text-white border-[var(--primary)]' : 'bg-white border-[var(--border)] text-[var(--text-sec)] hover:border-[var(--primary)] hover:text-[var(--primary)]'}`}
+                key={example}
+                onClick={() => handleSearch(example)}
+                className="bg-white border border-[var(--border)] rounded-full px-3 py-1 text-xs text-[var(--text-sec)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition-all"
               >
-                {f}
+                {example}
               </button>
             ))}
           </div>
 
-          <p className="text-xs text-[var(--text-sec)]">Powered by Sefaria&apos;s ElasticSearch with Hebrew morphological analysis.</p>
+          <p className="text-xs text-[var(--text-sec)]">Use the filters above to narrow results by source type. Each result links directly to the full text on Sefaria.</p>
         </div>
       </div>
     )
@@ -100,7 +113,7 @@ export function SearchInterface() {
           className="flex-1 border-none outline-none px-4 py-3 text-sm font-sans"
         />
         <button
-          onClick={handleSearch}
+          onClick={() => handleSearch()}
           disabled={isSearching}
           className="flex items-center gap-1.5 px-5 bg-[var(--primary)] text-white text-sm font-medium hover:bg-[var(--primary-light)] disabled:opacity-50 transition-all"
         >
@@ -114,7 +127,7 @@ export function SearchInterface() {
         {FILTERS.map((f) => (
           <button
             key={f}
-            onClick={() => { setActiveFilter(f); if (hasSearched) setTimeout(handleSearch, 0) }}
+            onClick={() => setActiveFilter(f)}
             className={`px-4 py-1.5 rounded-full text-sm border transition-all ${activeFilter === f ? 'bg-[var(--primary)] text-white border-[var(--primary)]' : 'bg-white border-[var(--border)] text-[var(--text-sec)] hover:border-[var(--primary)] hover:text-[var(--primary)]'}`}
           >
             {f}
@@ -124,9 +137,11 @@ export function SearchInterface() {
 
       {hasSearched && !isSearching && (
         <p className="text-sm text-[var(--text-sec)] mb-4">
-          {results.length > 0
-            ? <>Showing {results.length} of {total} results for <strong>&quot;{query}&quot;</strong></>
-            : <>No results found for <strong>&quot;{query}&quot;</strong>. Try a different search term.</>
+          {filteredResults.length > 0
+            ? <>Showing {filteredResults.length}{activeFilter !== 'All Texts' ? ` ${activeFilter}` : ''} of {allResults.length} results for <strong>&quot;{query}&quot;</strong></>
+            : activeFilter !== 'All Texts'
+              ? <>No {activeFilter} results for <strong>&quot;{query}&quot;</strong>. Try a different filter.</>
+              : <>No results found for <strong>&quot;{query}&quot;</strong>. Try a different search term.</>
           }
         </p>
       )}
@@ -143,7 +158,7 @@ export function SearchInterface() {
       )}
 
       {/* Results */}
-      {results.map((r) => (
+      {filteredResults.map((r) => (
         <div key={r.ref} className="bg-white border border-[var(--border)] rounded-lg px-6 py-5 mb-3 hover:shadow-md transition-shadow">
           <div className="flex justify-between items-start mb-3">
             <div>

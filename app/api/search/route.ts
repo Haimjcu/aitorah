@@ -5,23 +5,13 @@ import type { SefariaSearchHit } from '@/lib/sefaria/types'
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const q = searchParams.get('q')
-  const source = searchParams.get('source')
   const limit = Math.min(parseInt(searchParams.get('limit') ?? '10'), 50)
 
   if (!q) return Response.json({ error: 'Query required' }, { status: 400 })
 
-  const categoryMap: Record<string, string> = {
-    tanakh: 'Tanakh',
-    mishnah: 'Mishnah',
-    gemara: 'Talmud',
-    rishonim: 'Rishonim on Talmud',
-    acharonim: 'Acharonim on Talmud',
-  }
-  const categoryPath = source ? categoryMap[source.toLowerCase()] : undefined
-
   try {
     const [lemmatized, exact] = await Promise.allSettled([
-      searchTexts(q, { size: limit, slop: 2, categoryPath }),
+      searchTexts(q, { size: limit, slop: 2 }),
       searchExact(q, Math.min(limit, 5)),
     ])
 
