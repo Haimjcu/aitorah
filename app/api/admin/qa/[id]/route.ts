@@ -2,6 +2,7 @@ import { eq, ne, and, sql } from 'drizzle-orm'
 import { isAdmin } from '@/lib/admin'
 import { getDb } from '@/lib/db'
 import { qaPairs } from '@/lib/db/schema'
+import { generateFeaturedImage } from '@/lib/image-gen'
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { authorized } = await isAdmin()
@@ -50,6 +51,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const finalAnswer = answerMarkdown ?? existing.answerMarkdown
     const autoTitle = metaTitle ?? `${finalQuestion} — AI Torah`
     const autoDesc = metaDescription ?? finalAnswer.slice(0, 155).replace(/\n/g, ' ').trim() + '...'
+    const slug = existing.slug ?? id
+
+    let featuredImageUrl = existing.featuredImageUrl
+    if (!featuredImageUrl) {
+      featuredImageUrl = await generateFeaturedImage(finalQuestion, existing.categories, slug)
+    }
 
     await db.update(qaPairs)
       .set({
@@ -59,10 +66,26 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         answerMarkdown: finalAnswer,
         metaTitle: autoTitle,
         metaDescription: autoDesc,
+        ...(featuredImageUrl ? { featuredImageUrl } : {}),
       })
       .where(eq(qaPairs.id, id))
 
-    return Response.json({ status: 'approved', id })
+    return Response.json({ status: 'approved', id, featuredImageUrl })
+  }
+
+  if (action === 'save') {
+    const updates: Record<string, string> = {}
+    if (question) updates.question = question
+    if (answerMarkdown) updates.answerMarkdown = answerMarkdown
+
+    if (Object.keys(updates).length > 0) {
+      await db.update(qaPairs)
+        .set(updates)
+        .where(eq(qaPairs.id, id))
+    }
+
+    const [updated] = await db.select().from(qaPairs).where(eq(qaPairs.id, id)).limit(1)
+    return Response.json({ status: 'saved', item: updated })
   }
 
   if (action === 'reject') {

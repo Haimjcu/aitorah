@@ -62,10 +62,12 @@ function ScoreBreakdown({ reasons }: { reasons: QaPair['aiScoreReasons'] }) {
 function ExpandedCard({
   item,
   onAction,
+  onSave,
   acting,
 }: {
   item: QaPair
-  onAction: (id: string, action: string, edits?: Record<string, string>) => void
+  onAction: (id: string, action: string) => void
+  onSave: (id: string, edits: { question: string; answerMarkdown: string }) => void
   acting: boolean
 }) {
   const [editing, setEditing] = useState(false)
@@ -151,32 +153,50 @@ function ExpandedCard({
 
       {item.status === 'pending' && (
         <div className="flex gap-2 mt-4 pt-3 border-t border-[var(--border)]">
-          <button
-            onClick={() => {
-              if (editing) {
-                onAction(item.id, 'approve', { question: editQuestion, answerMarkdown: editAnswer })
-              } else {
-                onAction(item.id, 'approve')
-              }
-            }}
-            disabled={acting}
-            className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
-          >
-            {editing ? 'Save & Approve' : 'Approve'}
-          </button>
-          <button
-            onClick={() => onAction(item.id, 'reject')}
-            disabled={acting}
-            className="px-4 py-2 bg-red-50 text-red-700 text-sm font-medium rounded-lg hover:bg-red-100 disabled:opacity-50 transition-colors"
-          >
-            Reject
-          </button>
-          <button
-            onClick={() => setEditing(!editing)}
-            className="px-4 py-2 bg-[var(--surface-alt)] text-[var(--text-sec)] text-sm font-medium rounded-lg hover:bg-[var(--border)] transition-colors"
-          >
-            {editing ? 'Cancel Edit' : 'Edit'}
-          </button>
+          {editing ? (
+            <>
+              <button
+                onClick={() => onSave(item.id, { question: editQuestion, answerMarkdown: editAnswer })}
+                disabled={acting}
+                className="px-4 py-2 bg-[var(--primary)] text-white text-sm font-medium rounded-lg hover:bg-[var(--primary-light)] disabled:opacity-50 transition-colors"
+              >
+                Save
+              </button>
+              <button
+                onClick={() => {
+                  setEditQuestion(item.question)
+                  setEditAnswer(item.answerMarkdown)
+                  setEditing(false)
+                }}
+                className="px-4 py-2 bg-[var(--surface-alt)] text-[var(--text-sec)] text-sm font-medium rounded-lg hover:bg-[var(--border)] transition-colors"
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => onAction(item.id, 'approve')}
+                disabled={acting}
+                className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+              >
+                Approve
+              </button>
+              <button
+                onClick={() => onAction(item.id, 'reject')}
+                disabled={acting}
+                className="px-4 py-2 bg-red-50 text-red-700 text-sm font-medium rounded-lg hover:bg-red-100 disabled:opacity-50 transition-colors"
+              >
+                Reject
+              </button>
+              <button
+                onClick={() => setEditing(true)}
+                className="px-4 py-2 bg-[var(--surface-alt)] text-[var(--text-sec)] text-sm font-medium rounded-lg hover:bg-[var(--border)] transition-colors"
+              >
+                Edit
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -212,18 +232,35 @@ export function ReviewQueue() {
     fetchQueue()
   }, [fetchQueue])
 
-  const handleAction = async (id: string, action: string, edits?: Record<string, string>) => {
+  const handleAction = async (id: string, action: string) => {
     setActing(true)
     try {
       const res = await fetch(`/api/admin/qa/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, ...edits }),
+        body: JSON.stringify({ action }),
       })
       if (res.ok) {
         setItems((prev) => prev.filter((i) => i.id !== id))
         setTotal((prev) => prev - 1)
         setExpandedId(null)
+      }
+    } finally {
+      setActing(false)
+    }
+  }
+
+  const handleSave = async (id: string, edits: { question: string; answerMarkdown: string }) => {
+    setActing(true)
+    try {
+      const res = await fetch(`/api/admin/qa/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'save', ...edits }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setItems((prev) => prev.map((i) => i.id === id ? { ...i, ...data.item } : i))
       }
     } finally {
       setActing(false)
@@ -276,7 +313,7 @@ export function ReviewQueue() {
       {/* Items */}
       {!loading && items.map((item) => (
         expandedId === item.id ? (
-          <ExpandedCard key={item.id} item={item} onAction={handleAction} acting={acting} />
+          <ExpandedCard key={item.id} item={item} onAction={handleAction} onSave={handleSave} acting={acting} />
         ) : (
           <button
             key={item.id}
