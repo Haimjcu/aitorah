@@ -89,25 +89,73 @@ async function resolveParasha(geo: GeoInfo | null): Promise<CalendarContext> {
   return { text: parts.join('\n'), location, parashaRef }
 }
 
+const CHABAD_ONLY_TYPES = new Set(['tanya', 'hayom_yom', 'chumash_rashi'])
+
+const CHABAD_STUDIES: { key: string; name: string; path: string; query?: string; description: string }[] = [
+  { key: 'chumash_rashi', name: 'Chumash with Rashi', path: '/dailystudy/torahreading.asp', description: 'Daily Chumash portion divided by the days of the week (Sunday through Shabbat), with Rashi\'s commentary' },
+  { key: 'tanya', name: 'Tanya', path: '/dailystudy/tanya.asp', description: 'Daily portion of Tanya (Likutei Amarim) by Rabbi Schneur Zalman of Liadi, divided into daily readings across the year' },
+  { key: 'hayom_yom', name: 'Hayom Yom', path: '/dailystudy/hayomyom.asp', description: 'Daily insights and customs compiled by the Lubavitcher Rebbe, Rabbi Menachem M. Schneerson, from the teachings of the Previous Rebbe' },
+  { key: 'rambam_3', name: 'Rambam - 3 Chapters', path: '/dailystudy/rambam.asp', query: 'rambamChapters=3', description: 'Three chapters of Rambam\'s Mishneh Torah per day (completes the cycle in roughly one year)' },
+  { key: 'rambam_1', name: 'Rambam - 1 Chapter', path: '/dailystudy/rambam.asp', query: 'rambamChapters=1', description: 'One chapter of Rambam\'s Mishneh Torah per day (completes the cycle in roughly three years)' },
+  { key: 'sefer_hamitzvos', name: 'Daily Mitzvah (Sefer HaMitzvos)', path: '/dailystudy/seferHamitzvos.asp', description: 'Daily study of Rambam\'s Sefer HaMitzvos, corresponding to the Rambam 3-chapter cycle' },
+]
+
+function buildChabadUrl(study: typeof CHABAD_STUDIES[number], date: Date): string {
+  const m = date.getMonth() + 1
+  const d = date.getDate()
+  const y = date.getFullYear()
+  const tdate = `${m}/${d}/${y}`
+  const qs = study.query ? `tdate=${tdate}&${study.query}` : `tdate=${tdate}`
+  return `https://www.chabad.org${study.path}?${qs}`
+}
+
+function formatChabadSection(studies: typeof CHABAD_STUDIES, date: Date): string {
+  const parts: string[] = ['\n[Chabad Daily Study Links — Read the full text on Chabad.org]']
+  for (const s of studies) {
+    parts.push(`• ${s.name}: ${buildChabadUrl(s, date)}`)
+    parts.push(`  (${s.description})`)
+  }
+  return parts.join('\n')
+}
+
 async function resolveDailyLearning(
   today: string,
   geo: GeoInfo | null,
-  _learningType: string | null | undefined
+  learningType: string | null | undefined
 ): Promise<CalendarContext> {
-  const data = await getCalendarEvents(today, today, geo, {
-    parasha: false,
-    holidays: false,
-    dailyLearning: true,
-    candleLighting: false,
-  })
+  const date = new Date(today + 'T12:00:00')
+  const isChabadOnly = learningType && CHABAD_ONLY_TYPES.has(learningType)
 
   const parts = [`[Calendar Data — Daily Learning for ${today}]`]
-  for (const item of data.items) {
-    parts.push(`${item.title}${item.hebrew ? ' (' + item.hebrew + ')' : ''}`)
-    if (item.memo) parts.push(`  ${item.memo}`)
+
+  if (!isChabadOnly) {
+    const data = await getCalendarEvents(today, today, geo, {
+      parasha: false,
+      holidays: false,
+      dailyLearning: true,
+      candleLighting: false,
+    })
+
+    for (const item of data.items) {
+      parts.push(`${item.title}${item.hebrew ? ' (' + item.hebrew + ')' : ''}`)
+      if (item.memo) parts.push(`  ${item.memo}`)
+    }
+    if (data.items.length === 0) {
+      parts.push('No daily learning data available from Hebcal for this date.')
+    }
   }
-  if (data.items.length === 0) {
-    parts.push('No daily learning data available for this date.')
+
+  if (learningType && learningType !== 'all' && !isChabadOnly) {
+    const matched = CHABAD_STUDIES.filter(s => s.key === learningType)
+    if (matched.length > 0) {
+      parts.push(formatChabadSection(matched, date))
+    }
+  } else if (isChabadOnly) {
+    const matched = CHABAD_STUDIES.filter(s => s.key === learningType)
+    parts.push(formatChabadSection(matched, date))
+    parts.push('\nIMPORTANT: The user asked specifically about ' + matched[0]?.name + '. Direct them to the Chabad.org link above to read the full text. Describe what this daily study program is and how it works.')
+  } else {
+    parts.push(formatChabadSection(CHABAD_STUDIES, date))
   }
 
   return { text: parts.join('\n') }

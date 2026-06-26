@@ -80,8 +80,12 @@ export async function getCalendarEvents(
     params.set('yyomi', 'on')
     params.set('dty', 'on')
     params.set('dr1', 'on')
+    params.set('dr3', 'on')
+    params.set('dsm', 'on')
     params.set('dcc', 'on')
     params.set('dps', 'on')
+    params.set('nyomi', 'on')
+    params.set('dpa', 'on')
   }
   if (geo) {
     params.set('i', geo.isIsrael ? 'on' : 'off')

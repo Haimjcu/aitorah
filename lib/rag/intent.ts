@@ -49,7 +49,7 @@ Return ONLY valid JSON with these fields:
     "date_reference": null or string like "today", "tomorrow", "this_week", "2026-06-17",
     "hebrew_date": null or {"hy": number, "hm": "MonthName", "hd": number} for date conversion from Hebrew,
     "gregorian_date": null or "YYYY-MM-DD" for date conversion from Gregorian,
-    "learning_type": null or one of "daf_yomi", "mishna_yomi", "yerushalmi_yomi", "tanakh_yomi", "rambam", "chofetz_chaim", "tehillim"
+    "learning_type": null or one of "daf_yomi", "mishna_yomi", "yerushalmi_yomi", "tanakh_yomi", "nach_yomi", "rambam_1", "rambam_3", "sefer_hamitzvos", "chofetz_chaim", "tehillim", "pirkei_avot", "tanya", "hayom_yom", "chumash_rashi", "all"
   }
 }
 
@@ -78,6 +78,15 @@ Key rules for calendar detection:
 - If user asks ABOUT a parasha's content (meaning, themes), still classify as calendar_parasha but also include search_terms_en for the topic
 - If user explicitly names a date for conversion, extract it into hebrew_date or gregorian_date
 - Hebrew month names: Nisan, Iyyar, Sivan, Tamuz, Av, Elul, Tishrei, Cheshvan, Kislev, Tevet, Shvat, Adar, Adar1, Adar2
+
+CHABAD DAILY STUDY — classify as "calendar_learning" with the matching learning_type:
+- "tanya": daily Tanya study — "What's today's Tanya?", "What Tanya do we learn today?"
+- "hayom_yom": Hayom Yom (daily insights from the Lubavitcher Rebbe) — "What is today's Hayom Yom?"
+- "chumash_rashi": daily Chumash with Rashi (Chabad division) — "What is today's Chumash?", "daily Chumash with Rashi"
+- "rambam_3": Rambam 3 chapters per day — "What Rambam chapters today?", "daily Rambam 3 chapters"
+- "rambam_1": Rambam 1 chapter per day — "Rambam 1 chapter"
+- "sefer_hamitzvos": Daily Mitzvah / Sefer HaMitzvos — "What is today's daily mitzvah?"
+- If the user asks about "daily study" or "all daily learning" without specifying, use learning_type "all"
 
 - Extract refs even if implied (e.g. "the first verse of the Torah" → "Genesis 1:1")
 - Topics should be lowercase slug-like: "prayer", "shabbat", "free-will"
