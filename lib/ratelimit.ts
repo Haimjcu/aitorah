@@ -1,18 +1,5 @@
-import { Ratelimit } from '@upstash/ratelimit'
-import { Redis } from '@upstash/redis'
 import { NextRequest } from 'next/server'
-
-const hasRedis = !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
-
-const redis = hasRedis ? Redis.fromEnv() : null
-
-const chatRateLimit = redis
-  ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(10, '1 m'), prefix: 'rl:chat' })
-  : null
-
-const chatDailyLimit = redis
-  ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(50, '1 d'), prefix: 'rl:chat:daily' })
-  : null
+import { getRedis } from './redis'
 
 function getIP(req: NextRequest): string {
   return req.headers.get('x-forwarded-for')?.split(',')[0].trim()
@@ -20,14 +7,43 @@ function getIP(req: NextRequest): string {
     ?? '127.0.0.1'
 }
 
+async function slidingWindowCheck(
+  key: string,
+  limit: number,
+  windowSeconds: number
+): Promise<{ success: boolean; remaining: number; resetMs: number }> {
+  const redis = getRedis()
+  if (!redis) return { success: true, remaining: limit, resetMs: 0 }
+
+  const now = Date.now()
+  const windowMs = windowSeconds * 1000
+  const windowStart = now - windowMs
+
+  const pipeline = redis.pipeline()
+  pipeline.zremrangebyscore(key, 0, windowStart)
+  pipeline.zadd(key, now, `${now}:${Math.random()}`)
+  pipeline.zcard(key)
+  pipeline.expire(key, windowSeconds)
+
+  const results = await pipeline.exec()
+  const count = (results?.[2]?.[1] as number) ?? 0
+
+  return {
+    success: count <= limit,
+    remaining: Math.max(0, limit - count),
+    resetMs: now + windowMs,
+  }
+}
+
 export async function checkRateLimit(req: NextRequest): Promise<Response | null> {
-  if (!chatRateLimit || !chatDailyLimit) return null
+  const redis = getRedis()
+  if (!redis) return null
 
   const ip = getIP(req)
 
   const [perMinute, perDay] = await Promise.all([
-    chatRateLimit.limit(ip),
-    chatDailyLimit.limit(ip),
+    slidingWindowCheck(`rl:chat:min:${ip}`, 10, 60),
+    slidingWindowCheck(`rl:chat:day:${ip}`, 50, 86400),
   ])
 
   if (!perMinute.success) {
@@ -36,8 +52,8 @@ export async function checkRateLimit(req: NextRequest): Promise<Response | null>
       {
         status: 429,
         headers: {
-          'Retry-After': String(Math.ceil((perMinute.reset - Date.now()) / 1000)),
-          'X-RateLimit-Limit': String(perMinute.limit),
+          'Retry-After': String(Math.ceil((perMinute.resetMs - Date.now()) / 1000)),
+          'X-RateLimit-Limit': '10',
           'X-RateLimit-Remaining': String(perMinute.remaining),
         },
       },
@@ -50,8 +66,8 @@ export async function checkRateLimit(req: NextRequest): Promise<Response | null>
       {
         status: 429,
         headers: {
-          'Retry-After': String(Math.ceil((perDay.reset - Date.now()) / 1000)),
-          'X-RateLimit-Limit': String(perDay.limit),
+          'Retry-After': String(Math.ceil((perDay.resetMs - Date.now()) / 1000)),
+          'X-RateLimit-Limit': '50',
           'X-RateLimit-Remaining': String(perDay.remaining),
         },
       },

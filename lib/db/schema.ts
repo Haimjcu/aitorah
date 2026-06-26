@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, integer, uuid, index, real, uniqueIndex } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, integer, uuid, index, real, uniqueIndex, jsonb } from 'drizzle-orm/pg-core'
 
 // --- NextAuth tables ---
 
@@ -74,9 +74,19 @@ export const qaPairs = pgTable('qa_pairs', {
   slug: text('slug').unique(),
   similarity: real('similarity'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  status: text('status').default('pending').notNull(),
+  canonicalId: uuid('canonical_id'),
+  metaTitle: text('meta_title'),
+  metaDescription: text('meta_description'),
+  featuredImageUrl: text('featured_image_url'),
+  publishedAt: timestamp('published_at', { withTimezone: true }),
+  aiScore: integer('ai_score'),
+  aiScoreReasons: jsonb('ai_score_reasons'),
 }, (table) => [
   index('idx_qa_slug').on(table.slug),
   index('idx_qa_created').on(table.createdAt),
+  index('idx_qa_status').on(table.status),
+  index('idx_qa_published').on(table.publishedAt),
 ])
 
 // Legacy TypeScript interfaces (pre-Drizzle) — kept for backward compatibility
