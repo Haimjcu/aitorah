@@ -25,19 +25,25 @@ function getR2() {
 
 export async function generateFeaturedImage(
   question: string,
+  answerMarkdown: string,
   categories: string[] | null,
   slug: string,
 ): Promise<string | null> {
   try {
     const categoryHint = categories?.slice(0, 2).join(', ') ?? 'Torah'
 
+    const lines = answerMarkdown.split('\n').filter(l => l.trim())
+    const summary = lines.slice(-5).join(' ').replace(/[#*`>\[\]()]/g, '').slice(0, 300)
+
     const prompt = [
-      `A beautiful, dignified illustration for a Torah study article about: "${question}".`,
+      `Create an artistic illustration for a Torah article.`,
+      `Question: "${question}"`,
+      `Key takeaway: "${summary}"`,
+      `Illustrate the specific concept and scene described — not a generic study image.`,
       `Category: ${categoryHint}.`,
-      'Style: warm golden tones, soft lighting, classic Jewish art aesthetic.',
-      'Include subtle visual elements like Torah scrolls, ancient texts, menorahs, or olive branches where fitting.',
-      'No text, no letters, no words in the image.',
-      'Photorealistic painting style, 16:9 aspect ratio composition.',
+      'Style: rich oil painting aesthetic with warm golden and deep blue tones, dramatic lighting.',
+      'Do NOT show any person reading, studying, or holding a book.',
+      'No text, no letters, no words, no Hebrew characters in the image.',
     ].join(' ')
 
     const response = await getOpenAI().images.generate({

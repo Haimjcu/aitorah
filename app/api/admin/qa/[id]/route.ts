@@ -63,7 +63,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
     let featuredImageUrl = existing.featuredImageUrl
     if (!featuredImageUrl) {
-      featuredImageUrl = await generateFeaturedImage(finalQuestion, existing.categories, slug)
+      featuredImageUrl = await generateFeaturedImage(finalQuestion, finalAnswer, existing.categories, slug)
     }
 
     await db.update(qaPairs)
@@ -99,7 +99,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (action === 'generate-image') {
     const slug = existing.slug ?? id
     const featuredImageUrl = await generateFeaturedImage(
-      existing.question, existing.categories, slug
+      existing.question, existing.answerMarkdown, existing.categories, slug
     )
     if (!featuredImageUrl) {
       return Response.json({ error: 'Image generation failed' }, { status: 500 })
