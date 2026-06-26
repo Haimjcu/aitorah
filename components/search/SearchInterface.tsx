@@ -29,6 +29,20 @@ export function SearchInterface() {
   const [isSearching, setIsSearching] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
 
+  const filterCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const r of allResults) {
+      counts[r.source] = (counts[r.source] ?? 0) + 1
+    }
+    return counts
+  }, [allResults])
+
+  const visibleFilters = useMemo(() => {
+    if (allResults.length === 0) return []
+    const withResults = FILTERS.filter((f) => f === 'All Texts' || filterCounts[f])
+    return withResults.length <= 1 ? [] : withResults
+  }, [allResults, filterCounts])
+
   const filteredResults = useMemo(() => {
     if (activeFilter === 'All Texts') return allResults
     return allResults.filter((r) => r.source === activeFilter)
@@ -101,7 +115,7 @@ export function SearchInterface() {
   }
 
   return (
-    <div className="max-w-[760px]">
+    <div className="max-w-[760px] mx-auto">
       {/* Search bar */}
       <div className="flex bg-white border border-[var(--border)] rounded-xl overflow-hidden focus-within:border-[var(--primary-light)] transition-colors mb-3">
         <input
@@ -123,17 +137,25 @@ export function SearchInterface() {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-2 flex-wrap mb-5">
-        {FILTERS.map((f) => (
-          <button
-            key={f}
-            onClick={() => setActiveFilter(f)}
-            className={`px-4 py-1.5 rounded-full text-sm border transition-all ${activeFilter === f ? 'bg-[var(--primary)] text-white border-[var(--primary)]' : 'bg-white border-[var(--border)] text-[var(--text-sec)] hover:border-[var(--primary)] hover:text-[var(--primary)]'}`}
-          >
-            {f}
-          </button>
-        ))}
-      </div>
+      {visibleFilters.length > 0 && (
+        <div className="flex gap-2 flex-wrap mb-5">
+          {visibleFilters.map((f) => {
+            const count = f === 'All Texts' ? allResults.length : (filterCounts[f] ?? 0)
+            return (
+              <button
+                key={f}
+                onClick={() => setActiveFilter(f)}
+                className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-sm border transition-all ${activeFilter === f ? 'bg-[var(--primary)] text-white border-[var(--primary)]' : 'bg-white border-[var(--border)] text-[var(--text-sec)] hover:border-[var(--primary)] hover:text-[var(--primary)]'}`}
+              >
+                {f}
+                <span className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-semibold ${activeFilter === f ? 'bg-white/25 text-white' : 'bg-[var(--surface-alt)] text-[var(--text-sec)]'}`}>
+                  {count}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {hasSearched && !isSearching && (
         <p className="text-sm text-[var(--text-sec)] mb-4">
