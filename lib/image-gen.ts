@@ -56,7 +56,9 @@ export async function generateFeaturedImage(
       .resize(1200, 800, { fit: 'cover' })
       .webp({ quality: 80 })
       .toBuffer()
-    const body = new Uint8Array(compressed.buffer, compressed.byteOffset, compressed.byteLength)
+    const copy = new ArrayBuffer(compressed.byteLength)
+    new Uint8Array(copy).set(new Uint8Array(compressed.buffer, compressed.byteOffset, compressed.byteLength))
+    const body = new Uint8Array(copy)
     const key = `qa/${slug}.webp`
 
     await getR2().send(new PutObjectCommand({
