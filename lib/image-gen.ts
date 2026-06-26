@@ -1,5 +1,6 @@
 import OpenAI from 'openai'
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
+import sharp from 'sharp'
 
 let _openai: OpenAI | null = null
 function getOpenAI() {
@@ -50,7 +51,11 @@ export async function generateFeaturedImage(
     const b64 = response.data?.[0]?.b64_json
     if (!b64) return null
 
-    const buffer = Buffer.from(b64, 'base64')
+    const raw = Buffer.from(b64, 'base64')
+    const buffer = await sharp(raw)
+      .resize(1200, 800, { fit: 'cover' })
+      .webp({ quality: 80 })
+      .toBuffer()
     const key = `qa/${slug}.webp`
 
     await getR2().send(new PutObjectCommand({

@@ -50,7 +50,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const finalQuestion = question ?? existing.question
     const finalAnswer = answerMarkdown ?? existing.answerMarkdown
     const autoTitle = metaTitle ?? `${finalQuestion} — AI Torah`
-    const autoDesc = metaDescription ?? finalAnswer.slice(0, 155).replace(/\n/g, ' ').trim() + '...'
+    const plainText = finalAnswer
+      .replace(/#{1,6}\s+/g, '')
+      .replace(/\*{1,3}([^*]+)\*{1,3}/g, '$1')
+      .replace(/`([^`]+)`/g, '$1')
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      .replace(/^[-*>]\s+/gm, '')
+      .replace(/\n+/g, ' ')
+      .trim()
+    const autoDesc = metaDescription ?? plainText.slice(0, 155).trim() + '...'
     const slug = existing.slug ?? id
 
     let featuredImageUrl = existing.featuredImageUrl
