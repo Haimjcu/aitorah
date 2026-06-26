@@ -52,16 +52,17 @@ export async function generateFeaturedImage(
     if (!b64) return null
 
     const raw = Buffer.from(b64, 'base64')
-    const buffer = await sharp(raw)
+    const compressed = await sharp(raw)
       .resize(1200, 800, { fit: 'cover' })
       .webp({ quality: 80 })
       .toBuffer()
+    const body = new Uint8Array(compressed.buffer, compressed.byteOffset, compressed.byteLength)
     const key = `qa/${slug}.webp`
 
     await getR2().send(new PutObjectCommand({
       Bucket: process.env.R2_BUCKET_NAME!,
       Key: key,
-      Body: buffer,
+      Body: body,
       ContentType: 'image/webp',
     }))
 
