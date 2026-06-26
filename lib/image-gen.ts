@@ -36,14 +36,14 @@ export async function generateFeaturedImage(
     const summary = lines.slice(-5).join(' ').replace(/[#*`>\[\]()]/g, '').slice(0, 300)
 
     const prompt = [
-      `Create an artistic illustration for a Torah article.`,
-      `Question: "${question}"`,
-      `Key takeaway: "${summary}"`,
-      `Illustrate the specific concept and scene described — not a generic study image.`,
+      `A still life or landscape scene — zero humans, zero faces, zero silhouettes, zero hands.`,
+      `The scene symbolizes this Torah concept: "${question}"`,
+      `Context: "${summary}"`,
+      `Show only OBJECTS and SCENERY: sacred items, nature, architecture, food, light, sky, water.`,
+      `Composition: close-up of symbolic objects on a surface, or a wide landscape. Unpopulated.`,
+      `Style: classical oil painting, warm golden light, deep blues and amber tones.`,
       `Category: ${categoryHint}.`,
-      'Style: rich oil painting aesthetic with warm golden and deep blue tones, dramatic lighting.',
-      'Do NOT show any person reading, studying, or holding a book.',
-      'No text, no letters, no words, no Hebrew characters in the image.',
+      `The image contains absolutely zero text, zero letters, zero writing of any kind.`,
     ].join(' ')
 
     const response = await getOpenAI().images.generate({
