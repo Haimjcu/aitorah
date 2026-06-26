@@ -42,7 +42,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: 'jwt' },
   providers,
   callbacks: {
-    jwt({ token, user, profile }) {
+    async jwt({ token, user, account, profile }) {
       if (user) {
         token.id = user.id
         token.name = user.name
@@ -52,6 +52,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.name = profile.name
         token.email = profile.email
         token.picture = profile.picture
+      }
+      if (account?.provider === 'google' && profile?.email && hasDb) {
+        try {
+          const db = getDb()
+          const [existing] = await db.select({ id: users.id })
+            .from(users)
+            .where(eq(users.email, profile.email as string))
+            .limit(1)
+          if (existing) {
+            token.sub = existing.id
+          } else {
+            const [created] = await db.insert(users).values({
+              email: profile.email as string,
+              name: (profile.name as string) ?? null,
+              image: (profile.picture as string) ?? null,
+            }).returning({ id: users.id })
+            if (created) token.sub = created.id
+          }
+        } catch (e) {
+          console.error('Failed to link Google user to DB:', e)
+        }
       }
       return token
     },
