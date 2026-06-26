@@ -20,6 +20,7 @@ interface QaPair {
     uniqueness: number
     categoryCoverage: number
   } | null
+  featuredImageUrl: string | null
   createdAt: string
   status: string
 }
@@ -63,11 +64,13 @@ function ExpandedCard({
   item,
   onAction,
   onSave,
+  onGenerateImage,
   acting,
 }: {
   item: QaPair
   onAction: (id: string, action: string) => void
   onSave: (id: string, edits: { question: string; answerMarkdown: string }) => void
+  onGenerateImage: (id: string) => void
   acting: boolean
 }) {
   const [editing, setEditing] = useState(false)
@@ -148,6 +151,38 @@ function ExpandedCard({
           ">
             <ReactMarkdown>{item.answerMarkdown}</ReactMarkdown>
           </div>
+        )}
+      </div>
+
+      {/* Featured image */}
+      <div className="border-t border-[var(--border)] pt-3 mt-3">
+        <div className="text-xs font-semibold text-[var(--text-sec)] mb-1.5">Featured image</div>
+        {item.featuredImageUrl ? (
+          <div className="rounded-lg overflow-hidden border border-[var(--border)]">
+            <img src={item.featuredImageUrl} alt={item.question} className="w-full h-auto" />
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <p className="text-xs text-[var(--text-sec)]">No image yet.</p>
+            {item.status === 'pending' && (
+              <button
+                onClick={() => onGenerateImage(item.id)}
+                disabled={acting}
+                className="px-3 py-1.5 bg-[var(--accent)] text-white text-xs font-medium rounded-lg hover:bg-[var(--accent-dark)] disabled:opacity-50 transition-colors"
+              >
+                {acting ? 'Generating...' : 'Generate Image'}
+              </button>
+            )}
+          </div>
+        )}
+        {item.featuredImageUrl && item.status === 'pending' && (
+          <button
+            onClick={() => onGenerateImage(item.id)}
+            disabled={acting}
+            className="mt-2 px-3 py-1.5 bg-[var(--surface-alt)] text-[var(--text-sec)] text-xs font-medium rounded-lg hover:bg-[var(--border)] disabled:opacity-50 transition-colors"
+          >
+            {acting ? 'Generating...' : 'Regenerate Image'}
+          </button>
         )}
       </div>
 
@@ -267,6 +302,25 @@ export function ReviewQueue() {
     }
   }
 
+  const handleGenerateImage = async (id: string) => {
+    setActing(true)
+    try {
+      const res = await fetch(`/api/admin/qa/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'generate-image' }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setItems((prev) => prev.map((i) =>
+          i.id === id ? { ...i, featuredImageUrl: data.featuredImageUrl } : i
+        ))
+      }
+    } finally {
+      setActing(false)
+    }
+  }
+
   const totalPages = Math.max(1, Math.ceil(total / 20))
 
   return (
@@ -313,7 +367,7 @@ export function ReviewQueue() {
       {/* Items */}
       {!loading && items.map((item) => (
         expandedId === item.id ? (
-          <ExpandedCard key={item.id} item={item} onAction={handleAction} onSave={handleSave} acting={acting} />
+          <ExpandedCard key={item.id} item={item} onAction={handleAction} onSave={handleSave} onGenerateImage={handleGenerateImage} acting={acting} />
         ) : (
           <button
             key={item.id}

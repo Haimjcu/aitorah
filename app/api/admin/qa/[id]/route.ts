@@ -88,6 +88,22 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return Response.json({ status: 'saved', item: updated })
   }
 
+  if (action === 'generate-image') {
+    const slug = existing.slug ?? id
+    const featuredImageUrl = await generateFeaturedImage(
+      existing.question, existing.categories, slug
+    )
+    if (!featuredImageUrl) {
+      return Response.json({ error: 'Image generation failed' }, { status: 500 })
+    }
+
+    await db.update(qaPairs)
+      .set({ featuredImageUrl })
+      .where(eq(qaPairs.id, id))
+
+    return Response.json({ status: 'image-generated', featuredImageUrl })
+  }
+
   if (action === 'reject') {
     await db.update(qaPairs)
       .set({ status: 'rejected' })
