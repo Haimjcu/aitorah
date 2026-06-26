@@ -6,6 +6,8 @@ import { LogoMark } from '@/components/ui/LogoMark'
 const menuItems = [
   { label: 'Study', href: '/study' },
   { label: 'Search', href: '/search' },
+  { label: 'Q&A', href: '/answers' },
+  { label: 'Topics', href: '/topics' },
   { label: 'Community', href: '/community' },
   { label: 'Contact', href: '/contact' },
 ]

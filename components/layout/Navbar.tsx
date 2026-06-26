@@ -19,13 +19,20 @@ export function Navbar() {
         </Link>
 
         <div className="hidden md:flex items-center gap-1">
-          {['Study', 'Search', 'Community', 'Contact'].map((item) => (
+          {[
+          { label: 'Study', href: '/study' },
+          { label: 'Search', href: '/search' },
+          { label: 'Q&A', href: '/answers' },
+          { label: 'Topics', href: '/topics' },
+          { label: 'Community', href: '/community' },
+          { label: 'Contact', href: '/contact' },
+        ].map((item) => (
             <Link
-              key={item}
-              href={`/${item.toLowerCase()}`}
+              key={item.href}
+              href={item.href}
               className="px-3 py-1.5 rounded-md text-sm font-medium text-[var(--text-sec)] hover:text-[var(--text)] hover:bg-[var(--surface-alt)] transition-all"
             >
-              {item}
+              {item.label}
             </Link>
           ))}
         </div>

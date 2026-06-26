@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import ReactMarkdown from 'react-markdown'
 
 interface QaPair {
   id: string
@@ -89,7 +90,12 @@ function ExpandedCard({
               rows={2}
             />
           ) : (
-            <h3 className="font-serif font-bold text-[var(--primary)]">{item.question}</h3>
+            <h1 className="text-xl font-serif font-bold text-[var(--primary)]">{item.question}</h1>
+          )}
+          {item.slug && (
+            <div className="mt-1 text-xs text-[var(--text-sec)] font-mono">
+              /answers/{item.slug}
+            </div>
           )}
         </div>
       </div>
@@ -131,8 +137,14 @@ function ExpandedCard({
             rows={12}
           />
         ) : (
-          <div className="text-sm text-[var(--text-sec)] leading-relaxed max-h-[300px] overflow-y-auto whitespace-pre-wrap">
-            {item.answerMarkdown}
+          <div className="prose prose-sm prose-slate max-w-none max-h-[400px] overflow-y-auto
+            prose-headings:font-serif prose-headings:text-[var(--primary)]
+            prose-p:text-[var(--text)] prose-p:leading-relaxed
+            prose-a:text-[var(--primary-light)] prose-a:no-underline hover:prose-a:underline
+            prose-strong:text-[var(--text)]
+            prose-blockquote:border-l-[var(--accent)] prose-blockquote:text-[var(--text-sec)]
+          ">
+            <ReactMarkdown>{item.answerMarkdown}</ReactMarkdown>
           </div>
         )}
       </div>
