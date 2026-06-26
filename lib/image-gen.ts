@@ -40,20 +40,17 @@ export async function generateFeaturedImage(
     ].join(' ')
 
     const response = await getOpenAI().images.generate({
-      model: 'dall-e-3',
+      model: 'gpt-image-1',
       prompt,
       n: 1,
-      size: '1792x1024',
-      quality: 'standard',
+      size: '1536x1024',
+      quality: 'medium',
     })
 
-    const imageUrl = response.data?.[0]?.url
-    if (!imageUrl) return null
+    const b64 = response.data?.[0]?.b64_json
+    if (!b64) return null
 
-    const res = await fetch(imageUrl)
-    if (!res.ok) return null
-
-    const buffer = Buffer.from(await res.arrayBuffer())
+    const buffer = Buffer.from(b64, 'base64')
     const key = `qa/${slug}.webp`
 
     await getR2().send(new PutObjectCommand({
