@@ -1,6 +1,6 @@
 # AI Torah — Architecture Document
 
-> Last updated: 2026-06-23
+> Last updated: 2026-06-26
 
 ---
 
@@ -17,11 +17,15 @@ The target audience is Torah scholars, developers building Torah AI tools, and e
 ### 2.1 High-Level Overview
 
 - **AI Study Partner** — Conversational Torah study powered by Claude (Anthropic). Users ask questions; the system retrieves relevant sources from Sefaria, then streams an AI-generated answer with citations. Sessions are persisted to PostgreSQL for authenticated users.
-- **Authentication** — Email+password and Google OAuth sign-in via NextAuth v5 (Auth.js). Pure JWT session strategy (no database adapter for OAuth — Google sign-in stores user data entirely in the JWT). Credentials provider queries PostgreSQL directly for email/password login. Anonymous users can try one chat exchange before being prompted to sign in.
+- **Authentication** — Email+password and Google OAuth sign-in via NextAuth v5 (Auth.js). Pure JWT session strategy (no database adapter for OAuth). Google OAuth users are linked to database users by email lookup in the JWT callback, ensuring the same user identity across sign-in methods. Credentials provider queries PostgreSQL directly for email/password login. Anonymous users can try one chat exchange before being prompted to sign in.
 - **Session Persistence** — Authenticated users' chat sessions are saved to PostgreSQL with auto-save on each response. Sessions appear in a left sidebar (Claude Desktop-style) with load, delete, and new session controls.
 - **Jewish Calendar (Hebcal)** — Real-time calendar data via Hebcal REST APIs: weekly parasha with full leyning, daily learning schedules (Daf Yomi, Mishna Yomi, etc.), Shabbat/candle-lighting times, halachic zmanim, upcoming holidays, and Hebrew↔Gregorian date conversion. IP-based geolocation detects Israel vs. Diaspora for parasha/schedule differences.
 - **Torah Search** — Full-text search across the Sefaria library (Tanakh, Mishnah, Gemara, Rishonim, Acharonim) via Sefaria's ElasticSearch API. Supports category filtering.
 - **Q&A Cache** — Previously answered questions are cached in PostgreSQL. Identical questions return cached answers instantly.
+- **Public Q&A Pages** — Approved Q&A pairs are published as SEO-optimized pages at `/answers/[slug]` with Schema.org QAPage structured data, ISR (1hr), and OG metadata. Browse page at `/answers` with category filtering and pagination.
+- **Topic Pages** — Browse Q&A by Sefaria's 17 categories at `/topics` (index) and `/topics/[slug]` (per-category). Schema.org CollectionPage markup, ISR (30min).
+- **Admin Review Queue** — Admin-only UI at `/admin` for curating Q&A pairs before publication. AI scoring (100-point scale), rendered markdown preview, edit/save/approve/reject workflow, DALL-E image generation with preview.
+- **AI Image Generation** — On-demand DALL-E (gpt-image-1) featured images generated from the question + answer summary. Images are compressed via Sharp (1200×800 WebP) and stored in Cloudflare R2.
 - **Contact Form** — Collects name, email, phone, interests, and message. Sends notification email via Resend.
 - **Feedback Collection** — Accepts RLHF-style feedback (rating + correction) per chat message. Currently logs to console only (DB write is a TODO).
 - **Community Page** — Static page directing users to the Discord server.
@@ -70,12 +74,19 @@ The target audience is Torah scholars, developers building Torah AI tools, and e
     │  │(calendar│  │ locate)  │  │ cache)  │             │
     │  │ data)   │  └──────────┘  └─────────┘             │
     │  └─────────┘                                         │
-    │                ┌──────────┐                            │
-    │                │ Upstash  │                            │
-    │                │ Redis    │                            │
-    │                │(rate     │                            │
-    │                │ limit)   │                            │
-    │                └──────────┘                            │
+    │                ┌──────────┐  ┌──────────┐               │
+    │                │ Redis    │  │ OpenAI   │               │
+    │                │(ioredis) │  │ DALL-E   │               │
+    │                │(rate     │  │(image    │               │
+    │                │ limit +  │  │ gen)     │               │
+    │                │ cache)   │  └──────────┘               │
+    │                └──────────┘                             │
+    │                ┌──────────┐                             │
+    │                │Cloudflare│                             │
+    │                │ R2       │                             │
+    │                │(image    │                             │
+    │                │ storage) │                             │
+    │                └──────────┘                             │
     └────────────────────────────────────────────────────────┘
 ```
 
@@ -89,7 +100,7 @@ The target audience is Torah scholars, developers building Torah AI tools, and e
 1. User types a question in the chat UI (`components/study/ChatInterface.tsx`) or the hero input on the home page (`components/home/HeroChat.tsx`).
 2. If from the home page, the user is redirected to `/study?q=<encoded question>`.
 3. `ChatInterface` sends `POST /api/chat` with the full message history.
-4. **Rate limiting**: `lib/ratelimit.ts` checks per-IP limits via Upstash Redis (10/min, 50/day). If Redis is not configured, rate limiting is skipped.
+4. **Rate limiting**: `lib/ratelimit.ts` checks per-IP limits via ioredis sliding window (10/min, 50/day). If Redis is not configured, rate limiting is skipped.
 5. **Q&A Cache check**: If `DATABASE_URL` is set and this is the first message, `lib/db/qa.ts:findSimilarQuestion()` checks for an exact normalized match. On cache hit, the cached answer is returned immediately (non-streaming) with `X-Cache: HIT` header.
 6. **Intent classification** (`lib/rag/intent.ts:classifyIntent()`): Sends the question to Claude Haiku (`claude-haiku-4-5-20251001`) with a structured JSON prompt. Extracts: intent type (including 7 `calendar_*` types), Sefaria references, topic slugs, English/Hebrew search terms, category hint, and optional `calendar_params`.
 7. **Calendar resolution** (if `intent.type` starts with `calendar_`):
@@ -129,14 +140,15 @@ The target audience is Torah scholars, developers building Torah AI tools, and e
 - `lib/db/index.ts` — Drizzle/pg connection pool
 - `lib/db/schema.ts` — Drizzle table definitions (qa_pairs, users, accounts, auth_sessions, study_sessions, verification_tokens)
 - `lib/auth.ts` — NextAuth v5 configuration (Google + Credentials providers, pure JWT strategy, no database adapter)
-- `lib/ratelimit.ts` — Upstash Redis rate limiting
+- `lib/ratelimit.ts` — ioredis sliding window rate limiting
+- `lib/redis.ts` — ioredis singleton client with caching helpers (cacheGet, cacheSet, cacheDel, incrViewCount)
 - `components/study/ChatInterface.tsx` — Chat UI with auth-aware session sidebar, combined mobile drawer (sessions + nav), auth prompt
 - `components/study/AuthModal.tsx` — Sign in / sign up modal (email+password, Google OAuth)
 - `components/providers/AuthProvider.tsx` — NextAuth SessionProvider wrapper
 - `components/ui/CopyButton.tsx` — Copy-to-clipboard button with checkmark feedback
 - `components/home/HeroChat.tsx` — Home page chat input
 
-**Dependencies**: Anthropic API (Claude Haiku + Sonnet), Sefaria API, Hebcal API (hebcal.com, no auth), ip-api.com (geolocation, no auth), optionally PostgreSQL + Upstash Redis.
+**Dependencies**: Anthropic API (Claude Haiku + Sonnet), Sefaria API, Hebcal API (hebcal.com, no auth), ip-api.com (geolocation, no auth), optionally PostgreSQL + Redis (ioredis).
 
 #### 2.2.2 Torah Search
 
@@ -214,14 +226,82 @@ The target audience is Torah scholars, developers building Torah AI tools, and e
 **Purpose**: Prevent abuse of the AI chat endpoint.
 
 **How it works**:
-1. Uses Upstash Redis with two sliding windows: 10 requests/minute and 50 requests/day per IP.
-2. If Redis env vars are missing, rate limiting is silently disabled.
+1. Uses ioredis with sorted-set sliding windows (ZREMRANGEBYSCORE/ZADD/ZCARD): 10 requests/minute and 50 requests/day per IP.
+2. If `REDIS_URL` is not set, rate limiting is silently disabled.
 3. Returns `429` responses with `Retry-After`, `X-RateLimit-Limit`, and `X-RateLimit-Remaining` headers.
 
 **Files involved**:
-- `lib/ratelimit.ts` — Rate limit logic
+- `lib/ratelimit.ts` — Rate limit logic (sliding window via sorted sets)
+- `lib/redis.ts` — ioredis singleton client
 
-**Dependencies**: Upstash Redis (`UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`).
+**Dependencies**: Self-hosted Redis via `REDIS_URL` (ioredis TCP connection).
+
+#### 2.2.8 Public Q&A Pages (SEO/AEO)
+
+**Purpose**: Publish approved Q&A pairs as public, search-engine-optimized pages for SEO and AI engine citation (AEO/GEO).
+
+**How it works**:
+1. Q&A pairs generated from chat sessions are saved to `qa_pairs` with status `pending`.
+2. Admin reviews, edits, and approves pairs at `/admin` (protected by `ADMIN_EMAIL` env var).
+3. On approval: auto-generates metaTitle, metaDescription (markdown-stripped), and optionally a DALL-E featured image.
+4. Approved pairs are published at `/answers/[slug]` with ISR (revalidate 1hr).
+5. Schema.org QAPage JSON-LD structured data with Question, Answer, and citation array (Sefaria links).
+6. Browse page at `/answers` with category filters matching Sefaria's 17 categories.
+7. Topic index at `/topics` and per-category pages at `/topics/[slug]` with CollectionPage markup.
+8. Redis caching layer for published Q&A lookups, category stats, and sitemap slugs.
+
+**Files involved**:
+- `app/answers/page.tsx` — Browse page with category filters, pagination (ISR 30min)
+- `app/answers/[slug]/page.tsx` — Individual Q&A page with JSON-LD, OG metadata (ISR 1hr)
+- `app/answers/layout.tsx` — Marketing layout (Navbar)
+- `app/topics/page.tsx` — Topic index with category cards and counts (ISR 30min)
+- `app/topics/[slug]/page.tsx` — Per-category Q&A listing with CollectionPage JSON-LD
+- `app/topics/layout.tsx` — Marketing layout (Navbar)
+- `components/answers/AnswerContent.tsx` — Client component (ReactMarkdown, sources, breadcrumbs, related questions)
+- `lib/categories.ts` — Shared Sefaria 17-category config (name, slug, description)
+- `lib/db/qa.ts` — Published Q&A queries with Redis caching (getPublishedQaBySlug, getRelatedQaPairs, getPublishedQaPairs, getPublishedSlugs, getCategoryStats)
+
+**Dependencies**: PostgreSQL, Redis (caching), `@tailwindcss/typography` (prose rendering), `react-markdown`.
+
+#### 2.2.9 Admin Review Queue
+
+**Purpose**: Curate Q&A pairs before publication with AI-assisted scoring.
+
+**How it works**:
+1. Admin navigates to `/admin` (server component, redirects non-admins).
+2. ReviewQueue shows pending/approved/rejected tabs with paginated card list.
+3. Each pair has an AI score (0-100) based on: answer length, source count, specificity, uniqueness, category coverage.
+4. Expanded view shows rendered markdown preview, sources (Sefaria links), slug, score breakdown.
+5. Edit mode: edit question/answer → Save (persists without approving) → returns to preview.
+6. Generate Image: calls DALL-E gpt-image-1, shows preview, allows regeneration.
+7. Approve: sets status, publishedAt, auto-generates metaTitle/metaDescription, generates image if missing.
+
+**Files involved**:
+- `app/(app)/admin/page.tsx` — Server component with admin guard
+- `components/admin/ReviewQueue.tsx` — Full client component (tabs, cards, edit, image preview)
+- `app/api/admin/queue/route.ts` — GET: list Q&A pairs by status with AI scoring
+- `app/api/admin/qa/[id]/route.ts` — GET: detail + similar; PATCH: approve/reject/save/merge/generate-image
+- `lib/admin.ts` — isAdmin() check, computeAiScore()
+
+**Dependencies**: PostgreSQL, `ADMIN_EMAIL` env var.
+
+#### 2.2.10 AI Image Generation
+
+**Purpose**: Generate featured images for published Q&A pages.
+
+**How it works**:
+1. Triggered via "Generate Image" button in admin, or auto-generated on approve if no image exists.
+2. Builds a prompt from the question + last 5 lines of the answer (summary/conclusion).
+3. Prompt focuses on still life/landscape symbolic imagery (no people).
+4. Calls OpenAI gpt-image-1 (1536×1024, medium quality, base64 response).
+5. Compresses via Sharp: resize to 1200×800, WebP quality 80 (~100-200KB output).
+6. Uploads to Cloudflare R2 bucket at `qa/{slug}.webp`.
+7. Stores the public R2 URL in `featuredImageUrl` column.
+
+**Files involved**:
+- `lib/image-gen.ts` — generateFeaturedImage() (OpenAI + Sharp + R2 upload)
+
+**Dependencies**: OpenAI API (`OPENAI_API_KEY`), Cloudflare R2 (`R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_PUBLIC_URL`), Sharp.
 
 #### 2.2.7 Jewish Calendar Integration (Hebcal)
 
@@ -275,7 +355,19 @@ aitorah/
 │   │   └── contact/                  # Contact form
 │   │       ├── layout.tsx            # Metadata-only layout
 │   │       └── page.tsx              # Contact form UI (client component)
+│   ├── (app)/admin/page.tsx           # Admin review queue (protected)
+│   ├── answers/                      # Public Q&A pages (SEO)
+│   │   ├── layout.tsx                # Marketing layout (Navbar)
+│   │   ├── page.tsx                  # Browse page with category filters (ISR 30min)
+│   │   └── [slug]/page.tsx           # Individual Q&A page (ISR 1hr, JSON-LD)
+│   ├── topics/                       # Topic pages by Sefaria category
+│   │   ├── layout.tsx                # Marketing layout (Navbar)
+│   │   ├── page.tsx                  # Topic index with category cards (ISR 30min)
+│   │   └── [slug]/page.tsx           # Per-category Q&A listing (ISR 30min)
 │   ├── api/                          # API routes
+│   │   ├── admin/
+│   │   │   ├── queue/route.ts        # GET — admin Q&A queue with AI scoring
+│   │   │   └── qa/[id]/route.ts      # GET/PATCH — Q&A detail, approve/reject/save/generate-image
 │   │   ├── answers/route.ts          # GET — cached Q&A pairs
 │   │   ├── auth/
 │   │   │   ├── [...nextauth]/route.ts# NextAuth catch-all handler (GET/POST)
@@ -308,6 +400,10 @@ aitorah/
 │   │   └── Sidebar.tsx               # Left sidebar for app pages (Study, Search, etc.)
 │   ├── providers/
 │   │   └── AuthProvider.tsx          # NextAuth SessionProvider wrapper (client component)
+│   ├── admin/
+│   │   └── ReviewQueue.tsx           # Admin review queue (tabs, cards, edit, image preview)
+│   ├── answers/
+│   │   └── AnswerContent.tsx         # Q&A page content (ReactMarkdown, sources, related)
 │   ├── search/
 │   │   └── SearchInterface.tsx       # Search UI with filters, result cards, copy button
 │   ├── study/
@@ -320,7 +416,9 @@ aitorah/
 ├── lib/
 │   ├── ai/
 │   │   └── prompts.ts               # System prompt builder for study partner
+│   ├── admin.ts                      # Admin helpers (isAdmin, computeAiScore)
 │   ├── auth.ts                       # NextAuth v5 config (Google + Credentials, pure JWT, no DB adapter)
+│   ├── categories.ts                 # Sefaria 17-category config (name, slug, description)
 │   ├── db/
 │   │   ├── index.ts                  # Drizzle + pg Pool singleton
 │   │   ├── qa.ts                     # Q&A pair CRUD operations
@@ -339,10 +437,13 @@ aitorah/
 │   ├── sefaria/
 │   │   ├── client.ts                 # Sefaria API wrapper (texts, search, topics, links, etc.)
 │   │   └── types.ts                  # TypeScript interfaces for all Sefaria API responses
-│   └── ratelimit.ts                  # Upstash Redis rate limiting
+│   ├── image-gen.ts                  # DALL-E image generation + Sharp compression + R2 upload
+│   ├── redis.ts                      # ioredis singleton + caching helpers
+│   └── ratelimit.ts                  # ioredis sliding window rate limiting
 ├── drizzle/
 │   ├── 0000_fuzzy_tombstone.sql      # Initial migration: qa_pairs table
 │   ├── 0001_chilly_earthquake.sql    # Auth + sessions migration: users, accounts, auth_sessions, study_sessions, verification_tokens
+│   ├── 0002_normal_triathlon.sql     # SEO columns on qa_pairs: status, canonicalId, metaTitle, metaDescription, featuredImageUrl, publishedAt, aiScore, aiScoreReasons
 │   └── meta/                         # Drizzle Kit migration metadata
 ├── docs/                             # Design documents (reference only, not code)
 │   ├── 01-system-architecture.md
@@ -380,8 +481,8 @@ aitorah/
 ├── DEPLOY.md                         # Deployment instructions
 ├── railway.json                      # Railway deployment config
 ├── drizzle.config.ts                 # Drizzle Kit config
-├── next.config.mjs                   # Next.js config (standalone output, Sanity images, devIndicators disabled)
-├── tailwind.config.ts                # Tailwind config (custom theme)
+├── next.config.mjs                   # Next.js config (standalone output, Sanity images, serverExternalPackages: ioredis)
+├── tailwind.config.ts                # Tailwind config (custom theme + @tailwindcss/typography)
 ├── tsconfig.json                     # TypeScript config
 ├── postcss.config.mjs                # PostCSS config
 └── package.json                      # Dependencies and scripts
@@ -430,7 +531,9 @@ aitorah/
 | Hebcal API | External REST API | `https://www.hebcal.com` (no auth required) | Active — Jewish calendar data (parasha, zmanim, holidays, dates) |
 | ip-api.com | External REST API | `http://ip-api.com` (no auth, free tier) | Active — IP geolocation for Israel/Diaspora detection |
 | Anthropic Claude | External API | `ANTHROPIC_API_KEY` env var | Active — powers chat and intent classification |
-| Upstash Redis | Managed Redis | `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` | Optional — rate limiting disabled without it |
+| Redis (ioredis) | Self-hosted Redis | `REDIS_URL` env var (TCP) | Optional — rate limiting + Q&A caching disabled without it |
+| OpenAI | External API | `OPENAI_API_KEY` env var | Active — DALL-E image generation for Q&A pages |
+| Cloudflare R2 | Object storage | `R2_ACCOUNT_ID` + `R2_ACCESS_KEY_ID` + `R2_SECRET_ACCESS_KEY` + `R2_BUCKET_NAME` | Active — featured image storage |
 | Resend | Email API | `RESEND_API_KEY` env var | Active — contact form emails |
 | Sanity CMS | Headless CMS | `NEXT_PUBLIC_SANITY_PROJECT_ID` + `SANITY_API_TOKEN` | Configured but unused — no content or pages consume it |
 
@@ -499,10 +602,20 @@ qa_pairs
 ├── view_count          integer     default 0 — incremented on each access
 ├── slug                text        UNIQUE — URL-friendly question slug
 ├── similarity          real        nullable — reserved for future similarity scoring
+├── status              text        NOT NULL default 'pending' — pending/approved/rejected
+├── canonical_id        uuid        nullable — FK to canonical Q&A (for merged duplicates)
+├── meta_title          text        nullable — SEO page title
+├── meta_description    text        nullable — SEO meta description (markdown-stripped)
+├── featured_image_url  text        nullable — R2 URL for DALL-E generated image
+├── published_at        timestamptz nullable — set on approval
+├── ai_score            integer     nullable — 0-100 quality score
+├── ai_score_reasons    jsonb       nullable — score breakdown (answerLength, sourceCount, etc.)
 ├── created_at          timestamptz default now()
 │
-├── INDEX idx_qa_slug    (slug)
-└── INDEX idx_qa_created (created_at)
+├── INDEX idx_qa_slug      (slug)
+├── INDEX idx_qa_created   (created_at)
+├── INDEX idx_qa_status    (status)
+└── INDEX idx_qa_published (published_at)
 ```
 
 **Legacy TypeScript interfaces** in `lib/db/schema.ts` define types for future tables: `TorahText`, `MarketplaceListing`, `Order`, `RlhfFeedback`. These are **not backed by database tables** — they are aspirational type definitions only.
@@ -520,6 +633,11 @@ qa_pairs
 | `/` | `app/(marketing)/page.tsx` | Marketing (Navbar) | Home page: hero with chat input, feature cards, how-it-works, CTA |
 | `/study` | `app/(app)/study/page.tsx` | App (Sidebar) | AI Study Partner: chat interface with session sidebar, auth modals |
 | `/search` | `app/(app)/search/page.tsx` | App (Sidebar) | Torah Search: search bar, filters, result cards |
+| `/answers` | `app/answers/page.tsx` | Marketing (Navbar) | Q&A browse: category filters, paginated approved Q&As |
+| `/answers/[slug]` | `app/answers/[slug]/page.tsx` | Marketing (Navbar) | Individual Q&A page with JSON-LD, sources, related |
+| `/topics` | `app/topics/page.tsx` | Marketing (Navbar) | Topic index: 17 Sefaria categories with counts |
+| `/topics/[slug]` | `app/topics/[slug]/page.tsx` | Marketing (Navbar) | Per-category Q&A listing |
+| `/admin` | `app/(app)/admin/page.tsx` | App (Sidebar) | Admin review queue (protected by ADMIN_EMAIL) |
 | `/community` | `app/(marketing)/community/page.tsx` | Marketing (Navbar) | Community: Discord info, channels, audience types |
 | `/contact` | `app/(marketing)/contact/page.tsx` | Marketing (Navbar) | Contact form: name, email, interests, message |
 
@@ -567,7 +685,7 @@ Root Layout (app/layout.tsx)
 Marketing Layout (app/(marketing)/layout.tsx)
 ├── Navbar (components/layout/Navbar.tsx)
 │   ├── Logo + "AI Torah" link
-│   ├── Nav links: Study, Search, Community, Contact
+│   ├── Nav links: Study, Search, Q&A, Topics, Community, Contact
 │   └── Mobile: hamburger → MobileMenuDrawer
 └── <main>{children}</main>
 
@@ -575,7 +693,7 @@ App Layout (app/(app)/layout.tsx)
 └── AppShell (components/layout/AppShell.tsx)
     ├── Sidebar (components/layout/Sidebar.tsx)    ← hidden on mobile
     │   ├── Logo + "AI Torah" link
-    │   └── Nav: Study Partner, Torah Search, Community, Contact
+    │   └── Nav: Study Partner, Torah Search, Q&A, Topics, Community, Contact
     └── Content area
         └── {children}                             ← individual page
             └── AppPageHeader (title + mobile menu)
@@ -747,8 +865,14 @@ All session routes require authentication (return `401` if not signed in) and en
 | `DATABASE_URL` | No | `lib/db/index.ts:9` | PostgreSQL connection string |
 | `RESEND_API_KEY` | Yes (for contact) | `app/api/contact/route.ts:5` | Resend email API key |
 | `CONTACT_EMAIL` | Yes (for contact) | `app/api/contact/route.ts:26` | Recipient of contact form emails |
-| `UPSTASH_REDIS_REST_URL` | No | `lib/ratelimit.ts:5` | Upstash Redis URL for rate limiting |
-| `UPSTASH_REDIS_REST_TOKEN` | No | `lib/ratelimit.ts:5` | Upstash Redis auth token |
+| `REDIS_URL` | No | `lib/redis.ts` | Redis connection URL for rate limiting + Q&A caching (ioredis TCP) |
+| `OPENAI_API_KEY` | No | `lib/image-gen.ts` | OpenAI API key for DALL-E image generation |
+| `R2_ACCOUNT_ID` | No | `lib/image-gen.ts` | Cloudflare account ID for R2 storage |
+| `R2_ACCESS_KEY_ID` | No | `lib/image-gen.ts` | R2 API access key |
+| `R2_SECRET_ACCESS_KEY` | No | `lib/image-gen.ts` | R2 API secret key |
+| `R2_BUCKET_NAME` | No | `lib/image-gen.ts` | R2 bucket name (e.g. `aitorah-images`) |
+| `R2_PUBLIC_URL` | No | `lib/image-gen.ts` | Public URL for R2 bucket (e.g. `https://images.aitorah.ai`) |
+| `ADMIN_EMAIL` | No | `lib/admin.ts` | Email address authorized for admin access |
 | `NEXTAUTH_SECRET` | Yes (for auth) | `lib/auth.ts` | JWT signing secret for NextAuth (generate with `openssl rand -base64 32`) |
 | `NEXTAUTH_URL` | Yes (for auth) | `lib/auth.ts`, `app/robots.ts`, `app/sitemap.ts` | Full URL with protocol (e.g. `https://aitorah.ai`). `trustHost: true` is set as fallback. |
 | `GOOGLE_CLIENT_ID` | No | `lib/auth.ts` | Google OAuth client ID (hides Google button if missing) |
@@ -758,7 +882,7 @@ All session routes require authentication (return `401` if not signed in) and en
 | `SANITY_API_TOKEN` | No (unused) | `lib/sanity/client.ts:12` | Sanity write token |
 | `DISCORD_CLIENT_ID` | No (unused) | — | Reserved for Discord OAuth |
 | `DISCORD_CLIENT_SECRET` | No (unused) | — | Reserved for Discord OAuth |
-| `OPENAI_API_KEY` | No (unused) | — | Reserved for embeddings |
+| `OPENAI_API_KEY` | No | `lib/image-gen.ts` | OpenAI API for DALL-E image generation |
 | `STRIPE_SECRET_KEY` | No (unused) | — | Reserved for marketplace |
 | `STRIPE_WEBHOOK_SECRET` | No (unused) | — | Reserved for Stripe webhooks |
 | `DISCOURSE_SSO_SECRET` | No (unused) | — | Reserved for Discourse SSO |
@@ -781,8 +905,9 @@ All session routes require authentication (return `401` if not signed in) and en
 | `HINTS` | `string[]` | `components/study/ChatInterface.tsx:14` | Suggested question prompts for the chat UI |
 | `FILTERS` | `string[]` | `components/search/SearchInterface.tsx:15` | Search category filters: All Texts, Tanakh, Mishnah, Gemara, Rishonim, Acharonim |
 | `INTERESTS` | `string[]` | `app/(marketing)/contact/page.tsx:6-12` | Contact form interest options |
-| `navItems` | Array | `components/layout/Sidebar.tsx:7-12` | Sidebar navigation items: Study Partner, Torah Search, Community, Contact |
-| `menuItems` | Array | `components/layout/MobileMenu.tsx:6-11` | Mobile menu items: Study, Search, Community, Contact |
+| `navItems` | Array | `components/layout/Sidebar.tsx:7-14` | Sidebar navigation items: Study Partner, Torah Search, Q&A, Topics, Community, Contact |
+| `menuItems` | Array | `components/layout/MobileMenu.tsx:6-13` | Mobile menu items: Study, Search, Q&A, Topics, Community, Contact |
+| `CATEGORIES` | Array | `lib/categories.ts` | Sefaria's 17 categories with name, slug, description |
 
 ### 4.5 CSS Custom Properties (Design Tokens)
 
@@ -926,7 +1051,10 @@ The start command copies static assets and public files into the standalone buil
 |---|---|
 | `DATABASE_URL` | Q&A caching, authentication, session persistence |
 | `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` | Google OAuth sign-in (hides button if missing) |
-| `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` | Rate limiting |
+| `REDIS_URL` | Rate limiting + Q&A page caching |
+| `OPENAI_API_KEY` | DALL-E featured image generation |
+| `R2_ACCOUNT_ID` + `R2_ACCESS_KEY_ID` + `R2_SECRET_ACCESS_KEY` + `R2_BUCKET_NAME` + `R2_PUBLIC_URL` | Cloudflare R2 image storage |
+| `ADMIN_EMAIL` | Admin review queue access |
 | `NEXT_PUBLIC_SANITY_PROJECT_ID` + `SANITY_API_TOKEN` | CMS content (not yet used) |
 
 ### Deployment Steps
@@ -981,9 +1109,13 @@ DATABASE_URL=<railway-url> npx drizzle-kit push
 | Jewish Calendar | **Working** | Hebcal integration (parasha, learning, zmanim, holidays, dates), IP geolocation, Israel/Diaspora detection | User-selectable location override, persistent location preferences |
 | Torah Search | **Working** | Sefaria API search with filters, copy button | Local vector search (pgvector) |
 | Q&A Cache | **Working** (needs DB) | Save/retrieve by exact match | Semantic similarity matching |
+| Public Q&A Pages | **Working** | `/answers` browse, `/answers/[slug]` with ISR + JSON-LD QAPage, category filters, related questions, ReactMarkdown | Sitemap integration, llms.txt updates |
+| Topic Pages | **Working** | `/topics` index, `/topics/[slug]` per-category, CollectionPage JSON-LD, ISR | — |
+| Admin Review Queue | **Working** | AI scoring, rendered preview, edit/save/approve/reject, image generation with preview | Bulk actions |
+| AI Image Generation | **Working** | DALL-E gpt-image-1, Sharp compression, Cloudflare R2 storage, admin preview + regenerate | — |
 | Contact Form | **Working** | Zod validation, Resend email | — |
-| Rate Limiting | **Working** (needs Redis) | Per-IP sliding windows | Per-user limits |
-| SEO | **Working** | OpenGraph image, Apple icon, PWA manifest, JSON-LD, per-page metadata, robots.txt, sitemap.xml, llms.txt | — |
+| Rate Limiting | **Working** (needs Redis) | Per-IP sliding windows (ioredis sorted sets) | Per-user limits |
+| SEO/AEO | **Working** | OpenGraph image, Apple icon, PWA manifest, JSON-LD (QAPage, CollectionPage, Organization, WebSite), per-page metadata, robots.txt, sitemap.xml, llms.txt, Schema.org citations | Sitemap: add published Q&A slugs |
 | Feedback | **Stub** | API validates input, logs to console | DB write, admin UI |
 | Sanity CMS | **Not started** | Client + queries written | Sanity project, schemas, page integration |
 | Marketplace | **Not started** | TypeScript interfaces only | Everything |

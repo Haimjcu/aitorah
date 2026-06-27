@@ -25,25 +25,17 @@ function getR2() {
 
 export async function generateFeaturedImage(
   question: string,
-  answerMarkdown: string,
   categories: string[] | null,
   slug: string,
 ): Promise<string | null> {
   try {
     const categoryHint = categories?.slice(0, 2).join(', ') ?? 'Torah'
 
-    const lines = answerMarkdown.split('\n').filter(l => l.trim())
-    const summary = lines.slice(-5).join(' ').replace(/[#*`>\[\]()]/g, '').slice(0, 300)
-
     const prompt = [
-      `A still life or landscape scene — zero humans, zero faces, zero silhouettes, zero hands.`,
-      `The scene symbolizes this Torah concept: "${question}"`,
-      `Context: "${summary}"`,
-      `Show only OBJECTS and SCENERY: sacred items, nature, architecture, food, light, sky, water.`,
-      `Composition: close-up of symbolic objects on a surface, or a wide landscape. Unpopulated.`,
-      `Style: classical oil painting, warm golden light, deep blues and amber tones.`,
+      `A single symbolic object or simple scene representing: "${question}"`,
       `Category: ${categoryHint}.`,
-      `The image contains absolutely zero text, zero letters, zero writing of any kind.`,
+      `Style: soft watercolor, minimal, lots of whitespace, muted warm tones.`,
+      `No people, no text, no letters, no writing. One or two objects only.`,
     ].join(' ')
 
     const response = await getOpenAI().images.generate({
