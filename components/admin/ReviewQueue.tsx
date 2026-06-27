@@ -73,7 +73,7 @@ function ExpandedCard({
   onSave: (id: string, edits: { question: string; answerMarkdown: string }) => void
   onGenerateImage: (id: string) => void
   onRegenerate: (id: string) => void
-  acting: boolean
+  acting: string | null
 }) {
   const [editing, setEditing] = useState(false)
   const [editQuestion, setEditQuestion] = useState(item.question)
@@ -169,10 +169,10 @@ function ExpandedCard({
             {item.status === 'pending' && (
               <button
                 onClick={() => onGenerateImage(item.id)}
-                disabled={acting}
+                disabled={!!acting}
                 className="px-3 py-1.5 bg-[var(--accent)] text-white text-xs font-medium rounded-lg hover:bg-[var(--accent-dark)] disabled:opacity-50 transition-colors"
               >
-                {acting ? 'Generating...' : 'Generate Image'}
+                {acting === 'generate-image' ? 'Generating...' : 'Generate Image'}
               </button>
             )}
           </div>
@@ -180,10 +180,10 @@ function ExpandedCard({
         {item.featuredImageUrl && item.status === 'pending' && (
           <button
             onClick={() => onGenerateImage(item.id)}
-            disabled={acting}
+            disabled={!!acting}
             className="mt-2 px-3 py-1.5 bg-[var(--surface-alt)] text-[var(--text-sec)] text-xs font-medium rounded-lg hover:bg-[var(--border)] disabled:opacity-50 transition-colors"
           >
-            {acting ? 'Generating...' : 'Regenerate Image'}
+            {acting === 'generate-image' ? 'Generating...' : 'Regenerate Image'}
           </button>
         )}
       </div>
@@ -194,10 +194,10 @@ function ExpandedCard({
             <>
               <button
                 onClick={() => onSave(item.id, { question: editQuestion, answerMarkdown: editAnswer })}
-                disabled={acting}
+                disabled={!!acting}
                 className="px-4 py-2 bg-[var(--primary)] text-white text-sm font-medium rounded-lg hover:bg-[var(--primary-light)] disabled:opacity-50 transition-colors"
               >
-                Save
+                {acting === 'save' ? 'Saving...' : 'Save'}
               </button>
               <button
                 onClick={() => {
@@ -214,30 +214,31 @@ function ExpandedCard({
             <>
               <button
                 onClick={() => onAction(item.id, 'approve')}
-                disabled={acting}
+                disabled={!!acting}
                 className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
               >
-                Approve
+                {acting === 'approve' ? 'Approving...' : 'Approve'}
               </button>
               <button
                 onClick={() => onAction(item.id, 'reject')}
-                disabled={acting}
+                disabled={!!acting}
                 className="px-4 py-2 bg-red-50 text-red-700 text-sm font-medium rounded-lg hover:bg-red-100 disabled:opacity-50 transition-colors"
               >
-                Reject
+                {acting === 'reject' ? 'Rejecting...' : 'Reject'}
               </button>
               <button
                 onClick={() => setEditing(true)}
-                className="px-4 py-2 bg-[var(--surface-alt)] text-[var(--text-sec)] text-sm font-medium rounded-lg hover:bg-[var(--border)] transition-colors"
+                disabled={!!acting}
+                className="px-4 py-2 bg-[var(--surface-alt)] text-[var(--text-sec)] text-sm font-medium rounded-lg hover:bg-[var(--border)] disabled:opacity-50 transition-colors"
               >
                 Edit
               </button>
               <button
                 onClick={() => onRegenerate(item.id)}
-                disabled={acting}
+                disabled={!!acting}
                 className="px-4 py-2 bg-blue-50 text-blue-700 text-sm font-medium rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors"
               >
-                {acting ? 'Regenerating...' : 'Regenerate Answer'}
+                {acting === 'regenerate' ? 'Regenerating...' : 'Regenerate Answer'}
               </button>
             </>
           )}
@@ -253,7 +254,7 @@ export function ReviewQueue() {
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
-  const [acting, setActing] = useState(false)
+  const [acting, setActing] = useState<string | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const fetchQueue = useCallback(async () => {
@@ -277,7 +278,7 @@ export function ReviewQueue() {
   }, [fetchQueue])
 
   const handleAction = async (id: string, action: string) => {
-    setActing(true)
+    setActing(action)
     try {
       const res = await fetch(`/api/admin/qa/${id}`, {
         method: 'PATCH',
@@ -290,12 +291,12 @@ export function ReviewQueue() {
         setExpandedId(null)
       }
     } finally {
-      setActing(false)
+      setActing(null)
     }
   }
 
   const handleSave = async (id: string, edits: { question: string; answerMarkdown: string }) => {
-    setActing(true)
+    setActing('save')
     try {
       const res = await fetch(`/api/admin/qa/${id}`, {
         method: 'PATCH',
@@ -307,12 +308,12 @@ export function ReviewQueue() {
         setItems((prev) => prev.map((i) => i.id === id ? { ...i, ...data.item } : i))
       }
     } finally {
-      setActing(false)
+      setActing(null)
     }
   }
 
   const handleRegenerate = async (id: string) => {
-    setActing(true)
+    setActing('regenerate')
     try {
       const res = await fetch(`/api/admin/qa/${id}`, {
         method: 'PATCH',
@@ -324,12 +325,12 @@ export function ReviewQueue() {
         setItems((prev) => prev.map((i) => i.id === id ? { ...i, ...data.item } : i))
       }
     } finally {
-      setActing(false)
+      setActing(null)
     }
   }
 
   const handleGenerateImage = async (id: string) => {
-    setActing(true)
+    setActing('generate-image')
     try {
       const res = await fetch(`/api/admin/qa/${id}`, {
         method: 'PATCH',
@@ -343,7 +344,7 @@ export function ReviewQueue() {
         ))
       }
     } finally {
-      setActing(false)
+      setActing(null)
     }
   }
 
