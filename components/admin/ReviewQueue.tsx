@@ -65,12 +65,14 @@ function ExpandedCard({
   onAction,
   onSave,
   onGenerateImage,
+  onRegenerate,
   acting,
 }: {
   item: QaPair
   onAction: (id: string, action: string) => void
   onSave: (id: string, edits: { question: string; answerMarkdown: string }) => void
   onGenerateImage: (id: string) => void
+  onRegenerate: (id: string) => void
   acting: boolean
 }) {
   const [editing, setEditing] = useState(false)
@@ -230,6 +232,13 @@ function ExpandedCard({
               >
                 Edit
               </button>
+              <button
+                onClick={() => onRegenerate(item.id)}
+                disabled={acting}
+                className="px-4 py-2 bg-blue-50 text-blue-700 text-sm font-medium rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors"
+              >
+                {acting ? 'Regenerating...' : 'Regenerate Answer'}
+              </button>
             </>
           )}
         </div>
@@ -292,6 +301,23 @@ export function ReviewQueue() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'save', ...edits }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setItems((prev) => prev.map((i) => i.id === id ? { ...i, ...data.item } : i))
+      }
+    } finally {
+      setActing(false)
+    }
+  }
+
+  const handleRegenerate = async (id: string) => {
+    setActing(true)
+    try {
+      const res = await fetch(`/api/admin/qa/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'regenerate' }),
       })
       if (res.ok) {
         const data = await res.json()
@@ -367,7 +393,7 @@ export function ReviewQueue() {
       {/* Items */}
       {!loading && items.map((item) => (
         expandedId === item.id ? (
-          <ExpandedCard key={item.id} item={item} onAction={handleAction} onSave={handleSave} onGenerateImage={handleGenerateImage} acting={acting} />
+          <ExpandedCard key={item.id} item={item} onAction={handleAction} onSave={handleSave} onGenerateImage={handleGenerateImage} onRegenerate={handleRegenerate} acting={acting} />
         ) : (
           <button
             key={item.id}

@@ -1,8 +1,12 @@
 import { eq, ne, and, sql } from 'drizzle-orm'
+import Anthropic from '@anthropic-ai/sdk'
 import { isAdmin } from '@/lib/admin'
 import { getDb } from '@/lib/db'
 import { qaPairs } from '@/lib/db/schema'
 import { generateFeaturedImage } from '@/lib/image-gen'
+import { classifyIntent } from '@/lib/rag/intent'
+import { retrieve, formatSourcesForPrompt } from '@/lib/rag/retrieval'
+import { buildStudyPartnerSystemPrompt } from '@/lib/ai/prompts'
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { authorized } = await isAdmin()
@@ -110,6 +114,42 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       .where(eq(qaPairs.id, id))
 
     return Response.json({ status: 'image-generated', featuredImageUrl })
+  }
+
+  if (action === 'regenerate') {
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+    const intent = await classifyIntent(existing.question, anthropic)
+    const { sources } = await retrieve(existing.question, anthropic, intent)
+    const passagesText = formatSourcesForPrompt(sources)
+    const systemPrompt = buildStudyPartnerSystemPrompt(passagesText)
+
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 2048,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: existing.question }],
+    })
+
+    const newAnswer = response.content
+      .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+      .map(b => b.text)
+      .join('')
+
+    const newRefs = sources.map(s => s.ref)
+    const newCategories = [...new Set(sources.flatMap(s => s.categories ?? []))]
+    const newTopics = [...new Set(sources.map(s => s.topic_slug).filter(Boolean))] as string[]
+
+    await db.update(qaPairs)
+      .set({
+        answerMarkdown: newAnswer,
+        sourceRefs: newRefs,
+        categories: newCategories.length > 0 ? newCategories : existing.categories,
+        topics: newTopics.length > 0 ? newTopics : existing.topics,
+      })
+      .where(eq(qaPairs.id, id))
+
+    const [updated] = await db.select().from(qaPairs).where(eq(qaPairs.id, id)).limit(1)
+    return Response.json({ status: 'regenerated', item: updated })
   }
 
   if (action === 'reject') {
