@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { LogoMark } from '@/components/ui/LogoMark'
+import { InstallButton } from '@/components/pwa/InstallButton'
 
 export function Footer() {
   return (
@@ -36,6 +37,9 @@ export function Footer() {
                     )}
                   </li>
                 ))}
+                {col.title === 'Product' && (
+                  <li><InstallButton /></li>
+                )}
               </ul>
             </div>
           ))}
