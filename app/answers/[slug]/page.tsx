@@ -17,6 +17,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const description = qa.metaDescription ?? qa.answerMarkdown.slice(0, 155).replace(/\n/g, ' ').trim()
   const url = `https://aitorah.ai/answers/${slug}`
 
+  const ogImage = qa.featuredImageUrl
+    ? { url: qa.featuredImageUrl, width: 1200, height: 800, type: 'image/webp' as const }
+    : { url: 'https://aitorah.ai/opengraph-image.png', width: 1200, height: 630, type: 'image/png' as const }
+
   return {
     title,
     description,
@@ -26,7 +30,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description,
       url,
       type: 'article',
-      ...(qa.featuredImageUrl ? { images: [{ url: qa.featuredImageUrl }] } : {}),
+      siteName: 'AI Torah',
+      images: [ogImage],
     },
   }
 }

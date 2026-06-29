@@ -25,6 +25,9 @@ export const metadata: Metadata = {
   alternates: {
     canonical: '/',
   },
+  other: {
+    'fb:app_id': '1043148621581657',
+  },
   openGraph: {
     type: 'website',
     siteName: 'AI Torah',
