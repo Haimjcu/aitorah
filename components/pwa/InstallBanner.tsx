@@ -34,7 +34,7 @@ export function InstallBanner() {
   }
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-6 md:max-w-[380px] z-50 animate-slide-up">
+    <div className="fixed bottom-4 left-4 right-4 z-50 animate-slide-up md:hidden">
       <div className="bg-[var(--primary)] text-white rounded-xl shadow-lg p-4">
         {showIosGuide ? (
           <div>

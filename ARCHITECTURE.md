@@ -1,6 +1,6 @@
 # AI Torah — Architecture Document
 
-> Last updated: 2026-06-27
+> Last updated: 2026-06-29
 
 ---
 
@@ -30,7 +30,8 @@ The target audience is Torah scholars, developers building Torah AI tools, and e
 - **Feedback Collection** — Accepts RLHF-style feedback (rating + correction) per chat message. Currently logs to console only (DB write is a TODO).
 - **Community Page** — Static page directing users to the Discord server.
 - **Health Check** — Simple `/api/health` endpoint for deployment monitoring.
-- **SEO** — Auto-generated `robots.txt`, `sitemap.xml` (includes all published Q&A and topic pages), dynamic `llms.txt` route (ISR 1hr, lists all published Q&A), OpenGraph images, Apple icon, PWA manifest, JSON-LD structured data, per-page metadata.
+- **SEO** — Auto-generated `robots.txt`, `sitemap.xml` (includes all published Q&A and topic pages), dynamic `llms.txt` route (ISR 1hr, lists all published Q&A), OpenGraph images (with `fb:app_id` for Facebook), Apple icon, PWA manifest, JSON-LD structured data (QAPage, CollectionPage, BreadcrumbList, Organization, WebSite), per-page metadata.
+- **PWA** — Installable Progressive Web App via `@ducanh2912/next-pwa`. Service worker caches `/study` and `/search` pages (NetworkFirst), API responses (NetworkFirst with 10s timeout), and static assets (CacheFirst). Custom install banner appears after 60s on study/search pages; permanent install button in footer on mobile. Opens to `/study` in standalone mode.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -245,10 +246,12 @@ The target audience is Torah scholars, developers building Torah AI tools, and e
 2. Admin reviews, edits, and approves pairs at `/admin` (protected by `ADMIN_EMAIL` env var).
 3. On approval: auto-generates metaTitle, metaDescription (markdown-stripped), and optionally a DALL-E featured image.
 4. Approved pairs are published at `/answers/[slug]` with ISR (revalidate 1hr).
-5. Schema.org QAPage JSON-LD structured data with Question, Answer, and citation array (Sefaria links).
-6. Browse page at `/answers` with category filters matching Sefaria's 17 categories.
-7. Topic index at `/topics` and per-category pages at `/topics/[slug]` with CollectionPage markup.
-8. Redis caching layer for published Q&A lookups, category stats, and sitemap slugs.
+5. Schema.org QAPage JSON-LD structured data with Question (`name`, `text`), Answer (`text`, `url`, `upvoteCount`), and citation array (Sefaria links).
+6. BreadcrumbList JSON-LD on all pages: `/answers` (Home → Torah Q&A), `/answers/[slug]` (Home → Torah Q&A → Category → Question), `/topics` (Home → Topics), `/topics/[slug]` (Home → Topics → Category).
+7. Browse page at `/answers` with category filters matching Sefaria's 17 categories.
+8. Topic index at `/topics` and per-category pages at `/topics/[slug]` with CollectionPage markup.
+9. Redis caching layer for published Q&A lookups, category stats, and sitemap slugs.
+10. OpenGraph metadata with explicit image dimensions (`width`, `height`, `type`); falls back to default `opengraph-image.png` if no featured image. Facebook `fb:app_id` set globally in root layout.
 
 **Files involved**:
 - `app/answers/page.tsx` — Browse page with category filters, pagination (ISR 30min)
@@ -346,7 +349,7 @@ The target audience is Torah scholars, developers building Torah AI tools, and e
 aitorah/
 ├── app/                              # Next.js App Router pages and API routes
 │   ├── (app)/                        # App-section layout (sidebar + content shell)
-│   │   ├── layout.tsx                # Uses AppShell (sidebar layout)
+│   │   ├── layout.tsx                # Uses AppShell (sidebar layout) + InstallBanner
 │   │   ├── search/page.tsx           # Torah Search page
 │   │   └── study/page.tsx            # AI Study Partner page
 │   ├── (marketing)/                  # Marketing-section layout (navbar + content)
@@ -381,9 +384,9 @@ aitorah/
 │   │   └── sessions/
 │   │       ├── route.ts              # GET (list) / POST (create) study sessions
 │   │       └── [id]/route.ts         # GET / PATCH / DELETE individual session
-│   ├── layout.tsx                    # Root layout (fonts, GTM, Footer, AuthProvider)
-│   ├── globals.css                   # CSS variables, Tailwind directives, Hebrew class
-│   ├── manifest.ts                   # PWA web manifest
+│   ├── layout.tsx                    # Root layout (fonts, GTM, Footer, AuthProvider, fb:app_id)
+│   ├── globals.css                   # CSS variables, Tailwind directives, Hebrew class, slide-up animation
+│   ├── manifest.ts                   # PWA web manifest (start_url: /study, standalone, maskable icon)
 │   ├── opengraph-image.png           # Default OG image (1200×630)
 │   ├── apple-icon.png                # Apple touch icon (180×180)
 │   ├── favicon.ico                   # Multi-size favicon (transparent bg)
@@ -396,10 +399,13 @@ aitorah/
 │   ├── layout/
 │   │   ├── AppPageHeader.tsx         # Header bar for app pages (title + mobile menu)
 │   │   ├── AppShell.tsx              # Full-height sidebar + content container
-│   │   ├── Footer.tsx                # Site-wide footer with Sefaria + Hebcal attribution links
+│   │   ├── Footer.tsx                # Site-wide footer with Sefaria + Hebcal attribution links + PWA install button (mobile)
 │   │   ├── MobileMenu.tsx            # Hamburger button + slide-out drawer
 │   │   ├── Navbar.tsx                # Top nav for marketing pages
 │   │   └── Sidebar.tsx               # Left sidebar for app pages (Study, Search, etc.)
+│   ├── pwa/
+│   │   ├── InstallBanner.tsx         # Dismissible PWA install banner (60s delay, localStorage persistence)
+│   │   └── InstallButton.tsx         # Persistent PWA install button for footer (mobile only)
 │   ├── providers/
 │   │   └── AuthProvider.tsx          # NextAuth SessionProvider wrapper (client component)
 │   ├── admin/
@@ -440,6 +446,7 @@ aitorah/
 │   │   ├── client.ts                 # Sefaria API wrapper (texts, search, topics, links, etc.)
 │   │   └── types.ts                  # TypeScript interfaces for all Sefaria API responses
 │   ├── image-gen.ts                  # DALL-E image generation + Sharp compression + R2 upload
+│   ├── usePwaInstall.ts              # Shared React hook for PWA install (beforeinstallprompt, iOS detection, localStorage dismiss)
 │   ├── redis.ts                      # ioredis singleton + caching helpers
 │   └── ratelimit.ts                  # ioredis sliding window rate limiting
 ├── drizzle/
@@ -482,7 +489,7 @@ aitorah/
 ├── DEPLOY.md                         # Deployment instructions
 ├── railway.json                      # Railway deployment config
 ├── drizzle.config.ts                 # Drizzle Kit config
-├── next.config.mjs                   # Next.js config (standalone output, Sanity images, serverExternalPackages: ioredis)
+├── next.config.mjs                   # Next.js config (standalone output, Sanity images, serverExternalPackages: ioredis, @ducanh2912/next-pwa)
 ├── tailwind.config.ts                # Tailwind config (custom theme + @tailwindcss/typography)
 ├── tsconfig.json                     # TypeScript config
 ├── postcss.config.mjs                # PostCSS config
@@ -498,6 +505,9 @@ aitorah/
 | `LogoMark` | `components/ui/LogoMark.tsx` | Renders the AI Torah logo (dark/light variants) | `Navbar`, `Sidebar`, `MobileMenu`, `Footer`, `ChatInterface` |
 | `CopyButton` | `components/ui/CopyButton.tsx` | Copy-to-clipboard with checkmark feedback | `ChatInterface`, `SearchInterface` |
 | `BuildingBanner` | `components/ui/BuildingBanner.tsx` | CTA banner linking to `/contact` | Not currently imported (available for use) |
+| `InstallBanner` | `components/pwa/InstallBanner.tsx` | Dismissible PWA install banner (60s delay, dismissed → localStorage) | `app/(app)/layout.tsx` |
+| `InstallButton` | `components/pwa/InstallButton.tsx` | Persistent PWA install button (mobile only) | `Footer` |
+| `usePwaInstall` | `lib/usePwaInstall.ts` | Shared hook: `beforeinstallprompt` capture, iOS detection, standalone check, localStorage dismiss | `InstallBanner`, `InstallButton` |
 | `AuthProvider` | `components/providers/AuthProvider.tsx` | NextAuth `SessionProvider` wrapper | `app/layout.tsx` (root) |
 | `AuthModal` | `components/study/AuthModal.tsx` | Sign in / sign up modal (email + Google OAuth) | `ChatInterface` |
 | `AppShell` | `components/layout/AppShell.tsx` | Full-height `Sidebar + content` container | `app/(app)/layout.tsx` |
@@ -967,7 +977,7 @@ npm run dev
 | Command | What it does |
 |---|---|
 | `npm run dev` | Start Next.js dev server (port 3000) |
-| `npm run build` | Production build (standalone output) |
+| `npm run build` | Production build (standalone output, `--webpack` flag for PWA service worker generation) |
 | `npm run start` | Start production server |
 | `npm run lint` | Run ESLint |
 
@@ -1001,6 +1011,8 @@ npx drizzle-kit push
 7. **In-memory caches reset on every deploy/restart** — Sefaria, Hebcal, and geolocation caches are all per-process with no persistent cache layer.
 8. **Hebcal APIs are free but rate-limited** — ~90 requests per 10 seconds. The in-memory LRU cache (6h TTL) prevents hitting this limit under normal usage.
 9. **ip-api.com free tier is HTTP only** — the geolocation service uses `http://` (not HTTPS) on the free tier. This is acceptable since only the user's IP is sent (no secrets).
+10. **PWA build requires `--webpack` flag** — `@ducanh2912/next-pwa` uses a webpack plugin incompatible with Next.js 16's default Turbopack. The `build` script in `package.json` already includes `--webpack`. Dev mode (`npm run dev`) uses Turbopack as normal (PWA is disabled in dev via `disable: process.env.NODE_ENV === 'development'`).
+11. **Service worker files are gitignored** — `public/sw.js`, `public/workbox-*.js` are generated at build time and listed in `.gitignore`. Do not commit them.
 
 ---
 
@@ -1116,7 +1128,8 @@ DATABASE_URL=<railway-url> npx drizzle-kit push
 | AI Image Generation | **Working** | DALL-E gpt-image-1 (minimal watercolor style), Sharp compression, Cloudflare R2 storage, admin preview + regenerate | — |
 | Contact Form | **Working** | Zod validation, Resend email | — |
 | Rate Limiting | **Working** (needs Redis) | Per-IP sliding windows (ioredis sorted sets) | Per-user limits |
-| SEO/AEO | **Working** | OpenGraph image, Apple icon, PWA manifest, JSON-LD (QAPage, CollectionPage, Organization, WebSite), per-page metadata, robots.txt, sitemap.xml (dynamic, includes all published Q&A + topic pages), dynamic llms.txt route (ISR 1hr, lists all published Q&A), Schema.org citations, AEO-optimized answer structure | — |
+| SEO/AEO | **Working** | OpenGraph images with dimensions + fallback, fb:app_id, Apple icon, PWA manifest, JSON-LD (QAPage with upvoteCount/url/text, BreadcrumbList on all Q&A + topic pages, CollectionPage, Organization, WebSite), per-page metadata, robots.txt, sitemap.xml (dynamic, includes all published Q&A + topic pages), dynamic llms.txt route (ISR 1hr, lists all published Q&A), Schema.org citations, AEO-optimized answer structure | — |
+| PWA | **Working** | `@ducanh2912/next-pwa` service worker, `/study` + `/search` page caching (NetworkFirst), API response caching, static asset caching (CacheFirst), install banner (60s delay, localStorage dismiss), footer install button (mobile), iOS share instructions, standalone mode starting at `/study` | Push notifications |
 | Feedback | **Stub** | API validates input, logs to console | DB write, admin UI |
 | Sanity CMS | **Not started** | Client + queries written | Sanity project, schemas, page integration |
 | Marketplace | **Not started** | TypeScript interfaces only | Everything |
