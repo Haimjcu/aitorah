@@ -104,7 +104,7 @@ export default async function AnswerPage({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
       />
-      <AnswerContent qa={qa} related={related} />
+      <AnswerContent qa={qa} related={related} slug={slug} />
     </QaPageLayout>
   )
 }

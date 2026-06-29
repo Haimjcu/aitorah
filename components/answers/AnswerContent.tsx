@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import { categoryNameToSlug } from '@/lib/categories'
@@ -23,8 +24,15 @@ interface RelatedItem {
   metaDescription: string | null
 }
 
-export function AnswerContent({ qa, related }: { qa: QaPair; related: RelatedItem[] }) {
+export function AnswerContent({ qa, related, slug }: { qa: QaPair; related: RelatedItem[]; slug: string }) {
   const publishDate = qa.publishedAt ?? qa.createdAt
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetch(`/api/answers/${slug}/view`, { method: 'POST' }).catch(() => {})
+    }, 2000)
+    return () => clearTimeout(timer)
+  }, [slug])
 
   return (
     <article className="py-10">

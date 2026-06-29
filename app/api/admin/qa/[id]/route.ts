@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { isAdmin } from '@/lib/admin'
 import { getDb } from '@/lib/db'
 import { qaPairs } from '@/lib/db/schema'
+import { generateSlug } from '@/lib/db/qa'
 import { generateFeaturedImage } from '@/lib/image-gen'
 import { classifyIntent } from '@/lib/rag/intent'
 import { retrieve, formatSourcesForPrompt } from '@/lib/rag/retrieval'
@@ -87,7 +88,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   if (action === 'save') {
     const updates: Record<string, string> = {}
-    if (question) updates.question = question
+    if (question) {
+      updates.question = question
+      updates.slug = generateSlug(question)
+    }
     if (answerMarkdown) updates.answerMarkdown = answerMarkdown
 
     if (Object.keys(updates).length > 0) {

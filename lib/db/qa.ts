@@ -8,7 +8,7 @@ function normalizeQuestion(q: string): string {
   return q.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim()
 }
 
-function generateSlug(question: string): string {
+export function generateSlug(question: string): string {
   return question
     .toLowerCase()
     .replace(/[^\w\s-]/g, '')
@@ -142,12 +142,6 @@ async function _fetchPublishedBySlug(slug: string) {
         .limit(1)
       if (canonical?.slug) return { redirect: canonical.slug }
     }
-
-    db.update(qaPairs)
-      .set({ viewCount: sql`${qaPairs.viewCount} + 1` })
-      .where(eq(qaPairs.id, item.id))
-      .then(() => {})
-      .catch(() => {})
 
     return item
   } catch {
