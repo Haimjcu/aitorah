@@ -4,7 +4,7 @@ import { qaPairs } from './schema'
 import { cacheGet, cacheSet } from '../redis'
 import type { RetrievedSource } from '../sefaria/types'
 
-function normalizeQuestion(q: string): string {
+export function normalizeQuestion(q: string): string {
   return q.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim()
 }
 
