@@ -1,6 +1,6 @@
 # AI Torah — Architecture Document
 
-> Last updated: 2026-06-26
+> Last updated: 2026-06-27
 
 ---
 
@@ -30,7 +30,7 @@ The target audience is Torah scholars, developers building Torah AI tools, and e
 - **Feedback Collection** — Accepts RLHF-style feedback (rating + correction) per chat message. Currently logs to console only (DB write is a TODO).
 - **Community Page** — Static page directing users to the Discord server.
 - **Health Check** — Simple `/api/health` endpoint for deployment monitoring.
-- **SEO** — Auto-generated `robots.txt`, `sitemap.xml`, `llms.txt`, OpenGraph images, Apple icon, PWA manifest, JSON-LD structured data, per-page metadata.
+- **SEO** — Auto-generated `robots.txt`, `sitemap.xml` (includes all published Q&A and topic pages), dynamic `llms.txt` route (ISR 1hr, lists all published Q&A), OpenGraph images, Apple icon, PWA manifest, JSON-LD structured data, per-page metadata.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -135,7 +135,7 @@ The target audience is Torah scholars, developers building Torah AI tools, and e
 - `lib/hebcal/types.ts` — TypeScript interfaces for all Hebcal API responses
 - `lib/sefaria/client.ts` — Sefaria API client (all HTTP calls)
 - `lib/sefaria/types.ts` — TypeScript interfaces for Sefaria responses
-- `lib/ai/prompts.ts` — System prompt builder (now accepts optional `calendarContext` parameter)
+- `lib/ai/prompts.ts` — System prompt builder (accepts optional `calendarContext` parameter). Enforces AEO-optimized answer structure: direct 2-3 sentence answer first, then Key Takeaways section, then detailed answer. No summary at bottom.
 - `lib/db/qa.ts` — Q&A pair CRUD (save, find similar, get by slug, list recent)
 - `lib/db/index.ts` — Drizzle/pg connection pool
 - `lib/db/schema.ts` — Drizzle table definitions (qa_pairs, users, accounts, auth_sessions, study_sessions, verification_tokens)
@@ -273,14 +273,15 @@ The target audience is Torah scholars, developers building Torah AI tools, and e
 3. Each pair has an AI score (0-100) based on: answer length, source count, specificity, uniqueness, category coverage.
 4. Expanded view shows rendered markdown preview, sources (Sefaria links), slug, score breakdown.
 5. Edit mode: edit question/answer → Save (persists without approving) → returns to preview.
-6. Generate Image: calls DALL-E gpt-image-1, shows preview, allows regeneration.
-7. Approve: sets status, publishedAt, auto-generates metaTitle/metaDescription, generates image if missing.
+6. Regenerate Answer: re-runs the full RAG pipeline (intent classification → Sefaria retrieval → Claude generation) with the current system prompt, replacing the answer text and sources in place. Used to reformat old answers to the current AEO-optimized structure.
+7. Generate Image: calls DALL-E gpt-image-1, shows preview, allows regeneration.
+8. Approve: sets status, publishedAt, auto-generates metaTitle/metaDescription, generates image if missing.
 
 **Files involved**:
 - `app/(app)/admin/page.tsx` — Server component with admin guard
 - `components/admin/ReviewQueue.tsx` — Full client component (tabs, cards, edit, image preview)
 - `app/api/admin/queue/route.ts` — GET: list Q&A pairs by status with AI scoring
-- `app/api/admin/qa/[id]/route.ts` — GET: detail + similar; PATCH: approve/reject/save/merge/generate-image
+- `app/api/admin/qa/[id]/route.ts` — GET: detail + similar; PATCH: approve/reject/save/merge/generate-image/regenerate
 - `lib/admin.ts` — isAdmin() check, computeAiScore()
 
 **Dependencies**: PostgreSQL, `ADMIN_EMAIL` env var.
@@ -291,15 +292,15 @@ The target audience is Torah scholars, developers building Torah AI tools, and e
 
 **How it works**:
 1. Triggered via "Generate Image" button in admin, or auto-generated on approve if no image exists.
-2. Builds a prompt from the question + last 5 lines of the answer (summary/conclusion).
-3. Prompt focuses on still life/landscape symbolic imagery (no people).
+2. Builds a minimal prompt from the question + category only (answer text is not used).
+3. Prompt requests a soft watercolor style with one or two symbolic objects, lots of whitespace, muted warm tones. No people, no text.
 4. Calls OpenAI gpt-image-1 (1536×1024, medium quality, base64 response).
 5. Compresses via Sharp: resize to 1200×800, WebP quality 80 (~100-200KB output).
 6. Uploads to Cloudflare R2 bucket at `qa/{slug}.webp`.
 7. Stores the public R2 URL in `featuredImageUrl` column.
 
 **Files involved**:
-- `lib/image-gen.ts` — generateFeaturedImage() (OpenAI + Sharp + R2 upload)
+- `lib/image-gen.ts` — generateFeaturedImage(question, categories, slug) (OpenAI + Sharp + R2 upload)
 
 **Dependencies**: OpenAI API (`OPENAI_API_KEY`), Cloudflare R2 (`R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_PUBLIC_URL`), Sharp.
 
@@ -386,8 +387,9 @@ aitorah/
 │   ├── opengraph-image.png           # Default OG image (1200×630)
 │   ├── apple-icon.png                # Apple touch icon (180×180)
 │   ├── favicon.ico                   # Multi-size favicon (transparent bg)
+│   ├── llms.txt/route.ts              # Dynamic llms.txt with published Q&A listing (ISR 1hr)
 │   ├── robots.ts                     # robots.txt generation
-│   └── sitemap.ts                    # sitemap.xml generation
+│   └── sitemap.ts                    # sitemap.xml generation (includes published Q&A + topic pages)
 ├── components/
 │   ├── home/
 │   │   └── HeroChat.tsx              # Home page chat input → redirects to /study
@@ -457,7 +459,6 @@ aitorah/
 │   ├── 09-deploy-sefaria-rag.md
 │   └── 10-hebcal-integration-design.md
 ├── public/                           # Static assets
-│   ├── llms.txt                      # LLM-readable site description
 │   ├── logo.png, logo-light.png, logo-transparent.png
 │   ├── icon-192.png, icon-512.png    # PWA manifest icons
 │   ├── torah-scroll-bg.png
@@ -1109,13 +1110,13 @@ DATABASE_URL=<railway-url> npx drizzle-kit push
 | Jewish Calendar | **Working** | Hebcal integration (parasha, learning, zmanim, holidays, dates), IP geolocation, Israel/Diaspora detection | User-selectable location override, persistent location preferences |
 | Torah Search | **Working** | Sefaria API search with filters, copy button | Local vector search (pgvector) |
 | Q&A Cache | **Working** (needs DB) | Save/retrieve by exact match | Semantic similarity matching |
-| Public Q&A Pages | **Working** | `/answers` browse, `/answers/[slug]` with ISR + JSON-LD QAPage, category filters, related questions, ReactMarkdown | Sitemap integration, llms.txt updates |
+| Public Q&A Pages | **Working** | `/answers` browse, `/answers/[slug]` with ISR + JSON-LD QAPage, category filters, related questions, ReactMarkdown, AEO-optimized answer structure (direct answer + key takeaways first) | — |
 | Topic Pages | **Working** | `/topics` index, `/topics/[slug]` per-category, CollectionPage JSON-LD, ISR | — |
-| Admin Review Queue | **Working** | AI scoring, rendered preview, edit/save/approve/reject, image generation with preview | Bulk actions |
-| AI Image Generation | **Working** | DALL-E gpt-image-1, Sharp compression, Cloudflare R2 storage, admin preview + regenerate | — |
+| Admin Review Queue | **Working** | AI scoring, rendered preview, edit/save/approve/reject, regenerate answer (re-runs RAG pipeline), image generation with preview | Bulk actions |
+| AI Image Generation | **Working** | DALL-E gpt-image-1 (minimal watercolor style), Sharp compression, Cloudflare R2 storage, admin preview + regenerate | — |
 | Contact Form | **Working** | Zod validation, Resend email | — |
 | Rate Limiting | **Working** (needs Redis) | Per-IP sliding windows (ioredis sorted sets) | Per-user limits |
-| SEO/AEO | **Working** | OpenGraph image, Apple icon, PWA manifest, JSON-LD (QAPage, CollectionPage, Organization, WebSite), per-page metadata, robots.txt, sitemap.xml, llms.txt, Schema.org citations | Sitemap: add published Q&A slugs |
+| SEO/AEO | **Working** | OpenGraph image, Apple icon, PWA manifest, JSON-LD (QAPage, CollectionPage, Organization, WebSite), per-page metadata, robots.txt, sitemap.xml (dynamic, includes all published Q&A + topic pages), dynamic llms.txt route (ISR 1hr, lists all published Q&A), Schema.org citations, AEO-optimized answer structure | — |
 | Feedback | **Stub** | API validates input, logs to console | DB write, admin UI |
 | Sanity CMS | **Not started** | Client + queries written | Sanity project, schemas, page integration |
 | Marketplace | **Not started** | TypeScript interfaces only | Everything |

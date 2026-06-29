@@ -41,18 +41,23 @@ export default async function AnswerPage({ params }: Props) {
 
   const related = await getRelatedQaPairs(qa.id, qa.categories)
 
+  const pageUrl = `https://aitorah.ai/answers/${slug}`
+
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'QAPage',
     mainEntity: {
       '@type': 'Question',
       name: qa.question,
+      text: qa.question,
       dateCreated: qa.publishedAt ?? qa.createdAt,
       author: { '@type': 'Organization', name: 'AI Torah', url: 'https://aitorah.ai' },
       answerCount: 1,
       acceptedAnswer: {
         '@type': 'Answer',
         text: qa.answerMarkdown.slice(0, 500),
+        url: pageUrl,
+        upvoteCount: qa.viewCount ?? 0,
         dateCreated: qa.publishedAt ?? qa.createdAt,
         author: { '@type': 'Organization', name: 'AI Torah', url: 'https://aitorah.ai' },
         citation: qa.sourceRefs.map((ref) => ({
