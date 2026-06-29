@@ -1,7 +1,8 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { CATEGORIES, categoryNameToSlug } from '@/lib/categories'
 import { getPublishedQaPairs, getCategoryStats } from '@/lib/db/qa'
+import { QaPageLayout } from '@/components/answers/QaPageLayout'
+import { SortControls } from '@/components/answers/SortControls'
 
 export const revalidate = 1800
 
@@ -11,14 +12,12 @@ export const metadata: Metadata = {
   alternates: { canonical: '/answers' },
 }
 
-const FILTERS = ['All', ...CATEGORIES.map((c) => c.name)]
-
-type Props = { searchParams: Promise<{ category?: string; page?: string }> }
+type Props = { searchParams: Promise<{ page?: string; sort?: string }> }
 
 export default async function AnswersPage({ searchParams }: Props) {
   const sp = await searchParams
-  const category = sp.category
   const page = Math.max(1, parseInt(sp.page ?? '1'))
+  const sort: 'date' | 'views' = sp.sort === 'views' ? 'views' : 'date'
 
   if (!process.env.DATABASE_URL) {
     return (
@@ -30,11 +29,10 @@ export default async function AnswersPage({ searchParams }: Props) {
   }
 
   const [data, categoryStats] = await Promise.all([
-    getPublishedQaPairs({ category, page, limit: 20 }),
+    getPublishedQaPairs({ page, limit: 30, sort }),
     getCategoryStats(),
   ])
 
-  const statMap = new Map(categoryStats.map(c => [c.category, c.count]))
   const totalPublished = categoryStats.reduce((sum, c) => sum + c.count, 0)
   const totalPages = Math.max(1, Math.ceil(data.total / data.limit))
 
@@ -47,8 +45,10 @@ export default async function AnswersPage({ searchParams }: Props) {
     ],
   }
 
+  const sortParam = sort !== 'date' ? `sort=${sort}` : ''
+
   return (
-    <div className="max-w-[800px] mx-auto px-6 py-12">
+    <QaPageLayout categoryStats={categoryStats}>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
@@ -58,38 +58,11 @@ export default async function AnswersPage({ searchParams }: Props) {
         {totalPublished} answered questions with cited sources from the Sefaria library.
       </p>
 
-      {/* Category filters */}
-      <div className="flex gap-2 flex-wrap mb-8">
-        {FILTERS.map((f) => {
-          const count = f === 'All' ? totalPublished : (statMap.get(f) ?? 0)
-          if (f !== 'All' && count === 0) return null
-          const isActive = f === 'All' ? !category : category === f
-          const href = f === 'All' ? '/answers' : `/answers?category=${encodeURIComponent(f)}`
-          return (
-            <Link
-              key={f}
-              href={href}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-sm border transition-all ${
-                isActive
-                  ? 'bg-[var(--primary)] text-white border-[var(--primary)]'
-                  : 'bg-white border-[var(--border)] text-[var(--text-sec)] hover:border-[var(--primary)] hover:text-[var(--primary)]'
-              }`}
-            >
-              {f}
-              <span className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-semibold ${
-                isActive ? 'bg-white/25 text-white' : 'bg-[var(--surface-alt)] text-[var(--text-sec)]'
-              }`}>
-                {count}
-              </span>
-            </Link>
-          )
-        })}
-      </div>
+      <SortControls currentSort={sort} basePath="/answers" />
 
-      {/* Results */}
       {data.items.length === 0 ? (
         <p className="text-center text-[var(--text-sec)] py-12">
-          {category ? `No answers in ${category} yet.` : 'No answers published yet. Check back soon.'}
+          No answers published yet. Check back soon.
         </p>
       ) : (
         <div className="flex flex-col gap-3">
@@ -116,12 +89,11 @@ export default async function AnswersPage({ searchParams }: Props) {
         </div>
       )}
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-2 mt-8">
           {page > 1 && (
             <Link
-              href={`/answers?${category ? `category=${encodeURIComponent(category)}&` : ''}page=${page - 1}`}
+              href={`/answers?${[sortParam, `page=${page - 1}`].filter(Boolean).join('&')}`}
               className="px-3 py-1.5 text-sm border border-[var(--border)] rounded-lg hover:bg-[var(--surface-alt)] transition-colors"
             >
               Previous
@@ -130,7 +102,7 @@ export default async function AnswersPage({ searchParams }: Props) {
           <span className="text-sm text-[var(--text-sec)]">Page {page} of {totalPages}</span>
           {page < totalPages && (
             <Link
-              href={`/answers?${category ? `category=${encodeURIComponent(category)}&` : ''}page=${page + 1}`}
+              href={`/answers?${[sortParam, `page=${page + 1}`].filter(Boolean).join('&')}`}
               className="px-3 py-1.5 text-sm border border-[var(--border)] rounded-lg hover:bg-[var(--surface-alt)] transition-colors"
             >
               Next
@@ -138,6 +110,6 @@ export default async function AnswersPage({ searchParams }: Props) {
           )}
         </div>
       )}
-    </div>
+    </QaPageLayout>
   )
 }

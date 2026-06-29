@@ -1,7 +1,8 @@
 import type { Metadata } from 'next'
 import { notFound, redirect } from 'next/navigation'
-import { getPublishedQaBySlug, getRelatedQaPairs } from '@/lib/db/qa'
+import { getPublishedQaBySlug, getRelatedQaPairs, getCategoryStats } from '@/lib/db/qa'
 import { AnswerContent } from '@/components/answers/AnswerContent'
+import { QaPageLayout } from '@/components/answers/QaPageLayout'
 import { categoryNameToSlug } from '@/lib/categories'
 
 export const revalidate = 3600
@@ -45,7 +46,10 @@ export default async function AnswerPage({ params }: Props) {
   if (!qa) notFound()
   if ('redirect' in qa) redirect(`/answers/${qa.redirect}`)
 
-  const related = await getRelatedQaPairs(qa.id, qa.categories)
+  const [related, categoryStats] = await Promise.all([
+    getRelatedQaPairs(qa.id, qa.categories),
+    getCategoryStats(),
+  ])
 
   const pageUrl = `https://aitorah.ai/answers/${slug}`
   const primaryCategory = qa.categories?.[0]
@@ -91,7 +95,7 @@ export default async function AnswerPage({ params }: Props) {
   }
 
   return (
-    <>
+    <QaPageLayout categoryStats={categoryStats} activeCategory={primaryCategory}>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -101,6 +105,6 @@ export default async function AnswerPage({ params }: Props) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
       />
       <AnswerContent qa={qa} related={related} />
-    </>
+    </QaPageLayout>
   )
 }

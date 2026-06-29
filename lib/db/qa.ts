@@ -184,10 +184,12 @@ export async function getPublishedQaPairs(opts: {
   category?: string
   page?: number
   limit?: number
+  sort?: 'date' | 'views'
 } = {}) {
   const page = opts.page ?? 1
   const limit = opts.limit ?? 20
   const offset = (page - 1) * limit
+  const orderCol = opts.sort === 'views' ? desc(qaPairs.viewCount) : desc(qaPairs.createdAt)
 
   try {
     const db = getDb()
@@ -205,11 +207,12 @@ export async function getPublishedQaPairs(opts: {
         metaDescription: qaPairs.metaDescription,
         featuredImageUrl: qaPairs.featuredImageUrl,
         publishedAt: qaPairs.publishedAt,
+        createdAt: qaPairs.createdAt,
         viewCount: qaPairs.viewCount,
       })
         .from(qaPairs)
         .where(and(...conditions))
-        .orderBy(desc(qaPairs.publishedAt))
+        .orderBy(orderCol)
         .limit(limit)
         .offset(offset),
       db.select({ count: sql<number>`count(*)::int` })

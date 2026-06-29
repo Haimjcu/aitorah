@@ -22,8 +22,8 @@ The target audience is Torah scholars, developers building Torah AI tools, and e
 - **Jewish Calendar (Hebcal)** — Real-time calendar data via Hebcal REST APIs: weekly parasha with full leyning, daily learning schedules (Daf Yomi, Mishna Yomi, etc.), Shabbat/candle-lighting times, halachic zmanim, upcoming holidays, and Hebrew↔Gregorian date conversion. IP-based geolocation detects Israel vs. Diaspora for parasha/schedule differences.
 - **Torah Search** — Full-text search across the Sefaria library (Tanakh, Mishnah, Gemara, Rishonim, Acharonim) via Sefaria's ElasticSearch API. Supports category filtering.
 - **Q&A Cache** — Previously answered questions are cached in PostgreSQL. Identical questions return cached answers instantly.
-- **Public Q&A Pages** — Approved Q&A pairs are published as SEO-optimized pages at `/answers/[slug]` with Schema.org QAPage structured data, ISR (1hr), and OG metadata. Browse page at `/answers` with category filtering and pagination.
-- **Topic Pages** — Browse Q&A by Sefaria's 17 categories at `/topics` (index) and `/topics/[slug]` (per-category). Schema.org CollectionPage markup, ISR (30min).
+- **Public Q&A Pages** — Approved Q&A pairs are published as SEO-optimized pages at `/answers/[slug]` with Schema.org QAPage structured data, ISR (1hr), and OG metadata. Browse page at `/answers` with sort controls (newest/most viewed), 30 items per page, and topics sidebar. All Q&A pages (`/answers`, `/answers/[slug]`, `/topics/[slug]`) share a `QaPageLayout` with a topics sidebar (desktop: 220px vertical nav; mobile: 2-column grid above content).
+- **Topic Pages** — Browse Q&A by Sefaria's 17 categories at `/topics` (index) and `/topics/[slug]` (per-category with sort controls). Schema.org CollectionPage markup, ISR (30min).
 - **Admin Review Queue** — Admin-only UI at `/admin` for curating Q&A pairs before publication. AI scoring (100-point scale), rendered markdown preview, edit/save/approve/reject workflow, DALL-E image generation with preview.
 - **AI Image Generation** — On-demand DALL-E (gpt-image-1) featured images generated from the question + answer summary. Images are compressed via Sharp (1200×800 WebP) and stored in Cloudflare R2.
 - **Contact Form** — Collects name, email, phone, interests, and message. Sends notification email via Resend.
@@ -248,19 +248,22 @@ The target audience is Torah scholars, developers building Torah AI tools, and e
 4. Approved pairs are published at `/answers/[slug]` with ISR (revalidate 1hr).
 5. Schema.org QAPage JSON-LD structured data with Question (`name`, `text`), Answer (`text`, `url`, `upvoteCount`), and citation array (Sefaria links).
 6. BreadcrumbList JSON-LD on all pages: `/answers` (Home → Torah Q&A), `/answers/[slug]` (Home → Torah Q&A → Category → Question), `/topics` (Home → Topics), `/topics/[slug]` (Home → Topics → Category).
-7. Browse page at `/answers` with category filters matching Sefaria's 17 categories.
-8. Topic index at `/topics` and per-category pages at `/topics/[slug]` with CollectionPage markup.
+7. Browse page at `/answers` with sort controls (newest/most viewed), 30 items per page, and topics sidebar.
+8. Topic index at `/topics` and per-category pages at `/topics/[slug]` with CollectionPage markup, sort controls, and topics sidebar.
 9. Redis caching layer for published Q&A lookups, category stats, and sitemap slugs.
 10. OpenGraph metadata with explicit image dimensions (`width`, `height`, `type`); falls back to default `opengraph-image.png` if no featured image. Facebook `fb:app_id` set globally in root layout.
 
 **Files involved**:
-- `app/answers/page.tsx` — Browse page with category filters, pagination (ISR 30min)
-- `app/answers/[slug]/page.tsx` — Individual Q&A page with JSON-LD, OG metadata (ISR 1hr)
+- `app/answers/page.tsx` — Browse page with sort controls, 30/page pagination, topics sidebar (ISR 30min)
+- `app/answers/[slug]/page.tsx` — Individual Q&A page with JSON-LD, OG metadata, topics sidebar (ISR 1hr)
 - `app/answers/layout.tsx` — Marketing layout (Navbar)
 - `app/topics/page.tsx` — Topic index with category cards and counts (ISR 30min)
 - `app/topics/[slug]/page.tsx` — Per-category Q&A listing with CollectionPage JSON-LD
 - `app/topics/layout.tsx` — Marketing layout (Navbar)
 - `components/answers/AnswerContent.tsx` — Client component (ReactMarkdown, sources, breadcrumbs, related questions)
+- `components/answers/QaPageLayout.tsx` — Shared layout wrapper: topics sidebar (desktop 220px nav + mobile 2-col grid) + content area
+- `components/answers/TopicsSidebar.tsx` — Server component: category links with counts, active highlighting, mobile/desktop variants
+- `components/answers/SortControls.tsx` — Server component: "Newest" / "Most Viewed" sort pill links
 - `lib/categories.ts` — Shared Sefaria 17-category config (name, slug, description)
 - `lib/db/qa.ts` — Published Q&A queries with Redis caching (getPublishedQaBySlug, getRelatedQaPairs, getPublishedQaPairs, getPublishedSlugs, getCategoryStats)
 
@@ -411,7 +414,10 @@ aitorah/
 │   ├── admin/
 │   │   └── ReviewQueue.tsx           # Admin review queue (tabs, cards, edit, image preview)
 │   ├── answers/
-│   │   └── AnswerContent.tsx         # Q&A page content (ReactMarkdown, sources, related)
+│   │   ├── AnswerContent.tsx         # Q&A page content (ReactMarkdown, sources, related)
+│   │   ├── QaPageLayout.tsx          # Shared layout: topics sidebar + content area
+│   │   ├── TopicsSidebar.tsx         # Category nav with counts (desktop vertical / mobile 2-col grid)
+│   │   └── SortControls.tsx          # Newest / Most Viewed sort pill links
 │   ├── search/
 │   │   └── SearchInterface.tsx       # Search UI with filters, result cards, copy button
 │   ├── study/
@@ -508,6 +514,9 @@ aitorah/
 | `InstallBanner` | `components/pwa/InstallBanner.tsx` | Dismissible PWA install banner (60s delay, dismissed → localStorage) | `app/(app)/layout.tsx` |
 | `InstallButton` | `components/pwa/InstallButton.tsx` | Persistent PWA install button (mobile only) | `Footer` |
 | `usePwaInstall` | `lib/usePwaInstall.ts` | Shared hook: `beforeinstallprompt` capture, iOS detection, standalone check, localStorage dismiss | `InstallBanner`, `InstallButton` |
+| `QaPageLayout` | `components/answers/QaPageLayout.tsx` | Topics sidebar + content wrapper (desktop: flex row; mobile: stacked) | `answers/page.tsx`, `answers/[slug]/page.tsx`, `topics/[slug]/page.tsx` |
+| `TopicsSidebar` | `components/answers/TopicsSidebar.tsx` | Category navigation with counts. `mobile` prop toggles 2-col grid (md:hidden) vs vertical nav (hidden md:block) | `QaPageLayout` |
+| `SortControls` | `components/answers/SortControls.tsx` | Sort pill links (Newest / Most Viewed) with `currentSort` + `basePath` props | `answers/page.tsx`, `topics/[slug]/page.tsx` |
 | `AuthProvider` | `components/providers/AuthProvider.tsx` | NextAuth `SessionProvider` wrapper | `app/layout.tsx` (root) |
 | `AuthModal` | `components/study/AuthModal.tsx` | Sign in / sign up modal (email + Google OAuth) | `ChatInterface` |
 | `AppShell` | `components/layout/AppShell.tsx` | Full-height `Sidebar + content` container | `app/(app)/layout.tsx` |
@@ -644,10 +653,10 @@ qa_pairs
 | `/` | `app/(marketing)/page.tsx` | Marketing (Navbar) | Home page: hero with chat input, feature cards, how-it-works, CTA |
 | `/study` | `app/(app)/study/page.tsx` | App (Sidebar) | AI Study Partner: chat interface with session sidebar, auth modals |
 | `/search` | `app/(app)/search/page.tsx` | App (Sidebar) | Torah Search: search bar, filters, result cards |
-| `/answers` | `app/answers/page.tsx` | Marketing (Navbar) | Q&A browse: category filters, paginated approved Q&As |
-| `/answers/[slug]` | `app/answers/[slug]/page.tsx` | Marketing (Navbar) | Individual Q&A page with JSON-LD, sources, related |
+| `/answers` | `app/answers/page.tsx` | Marketing (Navbar) | Q&A browse: sort controls, 30/page, topics sidebar |
+| `/answers/[slug]` | `app/answers/[slug]/page.tsx` | Marketing (Navbar) | Individual Q&A page with JSON-LD, sources, related, topics sidebar |
 | `/topics` | `app/topics/page.tsx` | Marketing (Navbar) | Topic index: 17 Sefaria categories with counts |
-| `/topics/[slug]` | `app/topics/[slug]/page.tsx` | Marketing (Navbar) | Per-category Q&A listing |
+| `/topics/[slug]` | `app/topics/[slug]/page.tsx` | Marketing (Navbar) | Per-category Q&A listing with sort controls and topics sidebar |
 | `/admin` | `app/(app)/admin/page.tsx` | App (Sidebar) | Admin review queue (protected by ADMIN_EMAIL) |
 | `/community` | `app/(marketing)/community/page.tsx` | Marketing (Navbar) | Community: Discord info, channels, audience types |
 | `/contact` | `app/(marketing)/contact/page.tsx` | Marketing (Navbar) | Contact form: name, email, interests, message |

@@ -27,7 +27,7 @@ export function AnswerContent({ qa, related }: { qa: QaPair; related: RelatedIte
   const publishDate = qa.publishedAt ?? qa.createdAt
 
   return (
-    <article className="max-w-[760px] mx-auto px-6 py-10">
+    <article className="py-10">
       {/* Breadcrumbs */}
       <nav className="flex items-center gap-1.5 text-xs text-[var(--text-sec)] mb-6">
         <Link href="/" className="hover:text-[var(--primary)] transition-colors">Home</Link>
