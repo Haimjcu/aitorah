@@ -16,8 +16,21 @@ export default async function TopicsPage() {
   const statMap = new Map(stats.map((s) => [s.category, s.count]))
   const totalPublished = stats.reduce((sum, s) => sum + s.count, 0)
 
+  const breadcrumbLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://aitorah.ai' },
+      { '@type': 'ListItem', position: 2, name: 'Topics' },
+    ],
+  }
+
   return (
     <div className="max-w-[900px] mx-auto px-6 py-12">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
+      />
       <h1 className="text-2xl font-serif font-bold text-[var(--primary)] mb-2">Torah Topics</h1>
       <p className="text-sm text-[var(--text-sec)] mb-8">
         {totalPublished} answered questions across {stats.length} categories from the Sefaria library.

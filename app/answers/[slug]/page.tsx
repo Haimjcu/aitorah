@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { notFound, redirect } from 'next/navigation'
 import { getPublishedQaBySlug, getRelatedQaPairs } from '@/lib/db/qa'
 import { AnswerContent } from '@/components/answers/AnswerContent'
+import { categoryNameToSlug } from '@/lib/categories'
 
 export const revalidate = 3600
 
@@ -42,6 +43,8 @@ export default async function AnswerPage({ params }: Props) {
   const related = await getRelatedQaPairs(qa.id, qa.categories)
 
   const pageUrl = `https://aitorah.ai/answers/${slug}`
+  const primaryCategory = qa.categories?.[0]
+  const categorySlug = primaryCategory ? categoryNameToSlug(primaryCategory) : null
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -69,11 +72,28 @@ export default async function AnswerPage({ params }: Props) {
     },
   }
 
+  const breadcrumbLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://aitorah.ai' },
+      { '@type': 'ListItem', position: 2, name: 'Torah Q&A', item: 'https://aitorah.ai/answers' },
+      ...(primaryCategory && categorySlug
+        ? [{ '@type': 'ListItem', position: 3, name: primaryCategory, item: `https://aitorah.ai/topics/${categorySlug}` }]
+        : []),
+      { '@type': 'ListItem', position: primaryCategory && categorySlug ? 4 : 3, name: qa.question },
+    ],
+  }
+
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
       />
       <AnswerContent qa={qa} related={related} />
     </>

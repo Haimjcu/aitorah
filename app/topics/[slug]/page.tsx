@@ -48,11 +48,25 @@ export default async function TopicPage({ params, searchParams }: Props) {
     publisher: { '@type': 'Organization', name: 'AI Torah', url: 'https://aitorah.ai' },
   }
 
+  const breadcrumbLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://aitorah.ai' },
+      { '@type': 'ListItem', position: 2, name: 'Topics', item: 'https://aitorah.ai/topics' },
+      { '@type': 'ListItem', position: 3, name: cat.name },
+    ],
+  }
+
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
       />
       <div className="max-w-[800px] mx-auto px-6 py-12">
         {/* Breadcrumbs */}

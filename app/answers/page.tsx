@@ -38,8 +38,21 @@ export default async function AnswersPage({ searchParams }: Props) {
   const totalPublished = categoryStats.reduce((sum, c) => sum + c.count, 0)
   const totalPages = Math.max(1, Math.ceil(data.total / data.limit))
 
+  const breadcrumbLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://aitorah.ai' },
+      { '@type': 'ListItem', position: 2, name: 'Torah Q&A' },
+    ],
+  }
+
   return (
     <div className="max-w-[800px] mx-auto px-6 py-12">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
+      />
       <h1 className="text-2xl font-serif font-bold text-[var(--primary)] mb-2">Torah Q&A</h1>
       <p className="text-sm text-[var(--text-sec)] mb-6">
         {totalPublished} answered questions with cited sources from the Sefaria library.

@@ -8,3 +8,10 @@ node_modules
 next-env.d.ts
 Sefaria-Project-master/
 /hebcal-es6-main
+
+# PWA service worker (generated at build time)
+public/sw.js
+public/sw.js.map
+public/swe-worker-*.js
+public/workbox-*.js
+public/workbox-*.js.map
