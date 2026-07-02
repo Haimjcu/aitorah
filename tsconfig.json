@@ -39,6 +39,7 @@
     "node_modules",
     "Sefaria-Project-master",
     "hebcal-es6-main",
-    "drizzle.config.ts"
+    "drizzle.config.ts",
+    "scripts"
   ]
 }
