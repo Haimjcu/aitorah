@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { HeroChat } from '@/components/home/HeroChat'
 import { getTrendingQaPairs } from '@/lib/db/qa'
 
-export const revalidate = 1800
+export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
   title: 'AI Torah — Explore Torah With The Help Of Artificial Intelligence',

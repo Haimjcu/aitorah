@@ -34,6 +34,12 @@ export function AnswerContent({ qa, related, slug }: { qa: QaPair; related: Rela
   const handleFollowUp = (e: React.FormEvent) => {
     e.preventDefault()
     if (!followUp.trim()) return
+    try {
+      sessionStorage.setItem('followup-context', JSON.stringify({
+        question: qa.question,
+        answer: qa.answerMarkdown,
+      }))
+    } catch {}
     router.push(`/study?q=${encodeURIComponent(followUp.trim())}`)
   }
 

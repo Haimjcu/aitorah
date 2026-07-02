@@ -249,7 +249,22 @@ export function ChatInterface() {
       initialQuerySent.current = true
       router.replace('/study', { scroll: false })
       setCurrentSessionId(null)
-      setMessages([GREETING])
+
+      let contextMessages: Message[] = [GREETING]
+      try {
+        const raw = sessionStorage.getItem('followup-context')
+        if (raw) {
+          sessionStorage.removeItem('followup-context')
+          const ctx = JSON.parse(raw) as { question: string; answer: string }
+          contextMessages = [
+            GREETING,
+            { role: 'user', content: ctx.question },
+            { role: 'assistant', content: ctx.answer },
+          ]
+        }
+      } catch {}
+
+      setMessages(contextMessages)
       sendMessage(q)
     }
   }, [searchParams, router, sendMessage])
