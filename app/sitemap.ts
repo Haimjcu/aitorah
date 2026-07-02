@@ -2,6 +2,8 @@ import type { MetadataRoute } from 'next'
 import { getPublishedSlugs } from '@/lib/db/qa'
 import { CATEGORIES } from '@/lib/categories'
 
+export const revalidate = 3600
+
 const BASE_URL = process.env.NEXTAUTH_URL || 'https://aitorah.ai'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {

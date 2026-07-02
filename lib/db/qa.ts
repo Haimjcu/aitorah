@@ -277,7 +277,7 @@ export async function getPublishedSlugs(): Promise<string[]> {
       .orderBy(desc(qaPairs.publishedAt))
 
     const slugs = results.map(r => r.slug).filter((s): s is string => !!s)
-    await cacheSet(cacheKey, slugs, 21600)
+    await cacheSet(cacheKey, slugs, 3600)
     return slugs
   } catch {
     return []

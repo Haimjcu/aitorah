@@ -1,6 +1,6 @@
 # AI Torah — Architecture Document
 
-> Last updated: 2026-06-29
+> Last updated: 2026-07-02
 
 ---
 
@@ -22,7 +22,7 @@ The target audience is Torah scholars, developers building Torah AI tools, and e
 - **Jewish Calendar (Hebcal)** — Real-time calendar data via Hebcal REST APIs: weekly parasha with full leyning, daily learning schedules (Daf Yomi, Mishna Yomi, etc.), Shabbat/candle-lighting times, halachic zmanim, upcoming holidays, and Hebrew↔Gregorian date conversion. IP-based geolocation detects Israel vs. Diaspora for parasha/schedule differences.
 - **Torah Search** — Full-text search across the Sefaria library (Tanakh, Mishnah, Gemara, Rishonim, Acharonim) via Sefaria's ElasticSearch API. Supports category filtering.
 - **Q&A Cache** — Previously answered questions are cached in PostgreSQL. Identical questions return cached answers instantly.
-- **Public Q&A Pages** — Approved Q&A pairs are published as SEO-optimized pages at `/answers/[slug]` with Schema.org QAPage structured data, ISR (1hr), and OG metadata. Browse page at `/answers` with sort controls (newest/most viewed), 30 items per page, and topics sidebar. All Q&A pages (`/answers`, `/answers/[slug]`, `/topics/[slug]`) share a `QaPageLayout` with a topics sidebar (desktop: 220px vertical nav; mobile: 2-column grid above content).
+- **Public Q&A Pages** — Approved Q&A pairs are published as SEO-optimized pages at `/answers/[slug]` with Schema.org QAPage structured data, ISR (1hr), and OG metadata. Browse page at `/answers` with sort controls (defaults to most viewed), 30 items per page, and topics sidebar. All Q&A pages (`/answers`, `/answers/[slug]`, `/topics/[slug]`) share a `QaPageLayout` with a topics sidebar (desktop: 220px vertical nav; mobile: 2-column grid below content). Individual answer pages feature: expandable "People Also Asked" accordion (randomly selected from top 15 most-viewed), follow-up question input that navigates to `/study` with original Q&A context pre-loaded via sessionStorage, and a sticky mobile bottom bar with the same follow-up input.
 - **Topic Pages** — Browse Q&A by Sefaria's 17 categories at `/topics` (index) and `/topics/[slug]` (per-category with sort controls). Schema.org CollectionPage markup, ISR (30min).
 - **Admin Review Queue** — Admin-only UI at `/admin` for curating Q&A pairs before publication. AI scoring (100-point scale), rendered markdown preview, edit/save/approve/reject workflow, DALL-E image generation with preview.
 - **AI Image Generation** — On-demand DALL-E (gpt-image-1) featured images generated from the question + answer summary. Images are compressed via Sharp (1200×800 WebP) and stored in Cloudflare R2.
@@ -244,12 +244,16 @@ The target audience is Torah scholars, developers building Torah AI tools, and e
 **How it works**:
 1. Q&A pairs generated from chat sessions are saved to `qa_pairs` with status `pending`.
 2. Admin reviews, edits, and approves pairs at `/admin` (protected by `ADMIN_EMAIL` env var).
-3. On approval: auto-generates metaTitle, metaDescription (markdown-stripped), and optionally a DALL-E featured image.
+3. On approval: auto-capitalizes question (first letter), auto-generates metaTitle, metaDescription (first 2-3 sentences of the AEO direct answer, not blind truncation), and optionally a DALL-E featured image. Questions are also auto-capitalized on initial save from chat.
 4. Approved pairs are published at `/answers/[slug]` with ISR (revalidate 1hr).
 5. Schema.org QAPage JSON-LD structured data with Question (`name`, `text`), Answer (`text`, `url`, `upvoteCount`), and citation array (Sefaria links).
 6. BreadcrumbList JSON-LD on all pages: `/answers` (Home → Torah Q&A), `/answers/[slug]` (Home → Torah Q&A → Category → Question), `/topics` (Home → Topics), `/topics/[slug]` (Home → Topics → Category).
-7. Browse page at `/answers` with sort controls (newest/most viewed), 30 items per page, and topics sidebar.
-8. Topic index at `/topics` and per-category pages at `/topics/[slug]` with CollectionPage markup, sort controls, and topics sidebar.
+7. Browse page at `/answers` with sort controls (default: most viewed), 30 items per page, and topics sidebar (mobile: rendered below content).
+8. Topic index at `/topics` and per-category pages at `/topics/[slug]` with CollectionPage markup, sort controls (default: most viewed), and topics sidebar.
+9. "People Also Asked" section on answer pages uses expandable accordion format — items are randomly selected from top 15 most-viewed approved answers (Fisher-Yates shuffle). Clicking expands to show meta description preview and "Read full answer" link.
+10. Follow-up question input on answer pages — replaces generic CTA. Stores original Q&A context in sessionStorage, navigates to `/study?q=<followup>`. ChatInterface picks up context and pre-populates conversation history so Claude has the original Q&A as context for the follow-up.
+11. Sticky mobile bottom bar on answer pages — fixed position follow-up input visible while scrolling on mobile.
+12. Home page "Trending Questions" section — displays 8 cards randomly selected from top 16 most-viewed approved answers (excludes specific blocked IDs). Links to individual answer pages. Home page uses `force-dynamic` (SSR on every request) since trending cards shuffle randomly.
 9. Redis caching layer for published Q&A lookups, category stats, and sitemap slugs.
 10. OpenGraph metadata with explicit image dimensions (`width`, `height`, `type`); falls back to default `opengraph-image.png` if no featured image. Facebook `fb:app_id` set globally in root layout.
 
@@ -260,12 +264,12 @@ The target audience is Torah scholars, developers building Torah AI tools, and e
 - `app/topics/page.tsx` — Topic index with category cards and counts (ISR 30min)
 - `app/topics/[slug]/page.tsx` — Per-category Q&A listing with CollectionPage JSON-LD
 - `app/topics/layout.tsx` — Marketing layout (Navbar)
-- `components/answers/AnswerContent.tsx` — Client component (ReactMarkdown, sources, breadcrumbs, related questions)
-- `components/answers/QaPageLayout.tsx` — Shared layout wrapper: topics sidebar (desktop 220px nav + mobile 2-col grid) + content area
+- `components/answers/AnswerContent.tsx` — Client component (ReactMarkdown, sources, breadcrumbs, accordion PAA, follow-up input, sticky mobile bar, sessionStorage context passing)
+- `components/answers/QaPageLayout.tsx` — Shared layout wrapper: topics sidebar (desktop 220px nav; mobile 2-col grid below content) + content area
 - `components/answers/TopicsSidebar.tsx` — Server component: category links with counts, active highlighting, mobile/desktop variants
-- `components/answers/SortControls.tsx` — Server component: "Newest" / "Most Viewed" sort pill links
+- `components/answers/SortControls.tsx` — Server component: "Newest" / "Most Viewed" sort pill links (default: most viewed)
 - `lib/categories.ts` — Shared Sefaria 17-category config (name, slug, description)
-- `lib/db/qa.ts` — Published Q&A queries with Redis caching (getPublishedQaBySlug, getRelatedQaPairs, getPublishedQaPairs, getPublishedSlugs, getCategoryStats)
+- `lib/db/qa.ts` — Published Q&A queries with Redis caching (getPublishedQaBySlug, getRelatedQaPairs, getTrendingQaPairs, getPublishedQaPairs, getPublishedSlugs, getCategoryStats). Auto-capitalizes questions on save.
 
 **Dependencies**: PostgreSQL, Redis (caching), `@tailwindcss/typography` (prose rendering), `react-markdown`.
 
@@ -487,7 +491,10 @@ aitorah/
 ├── events/                           # Placeholder — future events feature
 ├── feedback/                         # Placeholder — future feedback storage
 ├── marketplace/                      # Placeholder — future marketplace feature
-├── scripts/                          # Placeholder — future ingestion/utility scripts
+├── scripts/                          # Seed and maintenance scripts
+│   ├── seed.ts                       # Seed Q&A pairs from seed-questions.json (generates answers, images, auto-approves)
+│   ├── seed-questions.json           # Seed question data (keywords, search volumes)
+│   └── capitalize-questions.ts       # One-off: capitalize first letter of all questions + update meta_titles
 ├── search/                           # Placeholder — future search infrastructure
 ├── types/                            # Placeholder — future shared types
 ├── webhooks/                         # Placeholder — future webhook handlers
@@ -514,9 +521,9 @@ aitorah/
 | `InstallBanner` | `components/pwa/InstallBanner.tsx` | Dismissible PWA install banner (60s delay, dismissed → localStorage) | `app/(app)/layout.tsx` |
 | `InstallButton` | `components/pwa/InstallButton.tsx` | Persistent PWA install button (mobile only) | `Footer` |
 | `usePwaInstall` | `lib/usePwaInstall.ts` | Shared hook: `beforeinstallprompt` capture, iOS detection, standalone check, localStorage dismiss | `InstallBanner`, `InstallButton` |
-| `QaPageLayout` | `components/answers/QaPageLayout.tsx` | Topics sidebar + content wrapper (desktop: flex row; mobile: stacked) | `answers/page.tsx`, `answers/[slug]/page.tsx`, `topics/[slug]/page.tsx` |
-| `TopicsSidebar` | `components/answers/TopicsSidebar.tsx` | Category navigation with counts. `mobile` prop toggles 2-col grid (md:hidden) vs vertical nav (hidden md:block) | `QaPageLayout` |
-| `SortControls` | `components/answers/SortControls.tsx` | Sort pill links (Newest / Most Viewed) with `currentSort` + `basePath` props | `answers/page.tsx`, `topics/[slug]/page.tsx` |
+| `QaPageLayout` | `components/answers/QaPageLayout.tsx` | Topics sidebar + content wrapper (desktop: flex row; mobile: topics below content) | `answers/page.tsx`, `answers/[slug]/page.tsx`, `topics/[slug]/page.tsx` |
+| `TopicsSidebar` | `components/answers/TopicsSidebar.tsx` | Category navigation with counts. `mobile` prop toggles 2-col grid (md:hidden, below content) vs vertical nav (hidden md:block) | `QaPageLayout` |
+| `SortControls` | `components/answers/SortControls.tsx` | Sort pill links (Newest / Most Viewed, default: Most Viewed) with `currentSort` + `basePath` props | `answers/page.tsx`, `topics/[slug]/page.tsx` |
 | `AuthProvider` | `components/providers/AuthProvider.tsx` | NextAuth `SessionProvider` wrapper | `app/layout.tsx` (root) |
 | `AuthModal` | `components/study/AuthModal.tsx` | Sign in / sign up modal (email + Google OAuth) | `ChatInterface` |
 | `AppShell` | `components/layout/AppShell.tsx` | Full-height `Sidebar + content` container | `app/(app)/layout.tsx` |
@@ -650,11 +657,11 @@ qa_pairs
 
 | Route | Page File | Layout | Description |
 |---|---|---|---|
-| `/` | `app/(marketing)/page.tsx` | Marketing (Navbar) | Home page: hero with chat input, feature cards, how-it-works, CTA |
+| `/` | `app/(marketing)/page.tsx` | Marketing (Navbar) | Home page: hero with chat input, trending questions (8 random from top 16 most-viewed), feature cards, how-it-works, CTA. `force-dynamic` (SSR). |
 | `/study` | `app/(app)/study/page.tsx` | App (Sidebar) | AI Study Partner: chat interface with session sidebar, auth modals |
 | `/search` | `app/(app)/search/page.tsx` | App (Sidebar) | Torah Search: search bar, filters, result cards |
-| `/answers` | `app/answers/page.tsx` | Marketing (Navbar) | Q&A browse: sort controls, 30/page, topics sidebar |
-| `/answers/[slug]` | `app/answers/[slug]/page.tsx` | Marketing (Navbar) | Individual Q&A page with JSON-LD, sources, related, topics sidebar |
+| `/answers` | `app/answers/page.tsx` | Marketing (Navbar) | Q&A browse: sort controls (default: most viewed), 30/page, topics sidebar (mobile: below content) |
+| `/answers/[slug]` | `app/answers/[slug]/page.tsx` | Marketing (Navbar) | Individual Q&A page with JSON-LD, accordion PAA, follow-up input, sticky mobile bar, topics sidebar |
 | `/topics` | `app/topics/page.tsx` | Marketing (Navbar) | Topic index: 17 Sefaria categories with counts |
 | `/topics/[slug]` | `app/topics/[slug]/page.tsx` | Marketing (Navbar) | Per-category Q&A listing with sort controls and topics sidebar |
 | `/admin` | `app/(app)/admin/page.tsx` | App (Sidebar) | Admin review queue (protected by ADMIN_EMAIL) |
@@ -678,6 +685,22 @@ qa_pairs
 3. User can sign in with email+password or Google OAuth.
 4. On successful auth, modal closes, session list loads, current conversation is saved.
 5. Sessions appear in left sidebar (desktop) or slide-out drawer (mobile).
+
+**Flow 1c: Follow-up from an answer page**
+1. User lands on `/answers/[slug]` (e.g., from Google search).
+2. Reads the answer, scrolls through sources and "People Also Asked" accordion.
+3. Types a follow-up question in the inline input (or sticky mobile bottom bar).
+4. `AnswerContent` saves `{ question, answer }` to sessionStorage under key `followup-context`.
+5. Navigates to `/study?q=<follow-up>`.
+6. `ChatInterface` reads `q` param, finds `followup-context` in sessionStorage, removes it.
+7. Pre-populates messages with: greeting → original question (as user) → original answer (as assistant).
+8. Sends the follow-up with full conversation history, so Claude has the original Q&A as context.
+
+**Flow 1d: Discover from trending questions**
+1. User lands on `/` → scrolls past hero to "Trending Questions" section.
+2. Sees 8 question cards (randomly selected from top 16 most-viewed).
+3. Clicks a card → navigates to `/answers/[slug]`.
+4. Can then follow Flow 1c to ask a follow-up.
 
 **Flow 2: Search Torah texts**
 1. User navigates to `/search` via sidebar or navbar.
@@ -1124,16 +1147,16 @@ DATABASE_URL=<railway-url> npx drizzle-kit push
 
 | Feature | Status | What's Built | What's Missing |
 |---|---|---|---|
-| Home page | **Working** | Full marketing page with hero chat, "Ask AI Torah" CTAs, OG image | — |
+| Home page | **Working** | Full marketing page with hero chat, trending questions section (8 random from top 16), "Ask AI Torah" CTAs, OG image. `force-dynamic` SSR. | — |
 | AI Study Partner | **Working** | RAG pipeline, streaming chat, source panel, session sidebar, copy button | — |
 | Authentication | **Working** (Google needs env vars, email/pw needs DB) | NextAuth v5 (Email+Google), sign up/in modals, pure JWT sessions (no DB adapter for OAuth) | Email verification, password reset |
 | Session Persistence | **Working** (needs DB) | Auto-save, session list sidebar, load/delete/new, combined mobile drawer (sessions + nav), anonymous→auth bridge | — |
 | Jewish Calendar | **Working** | Hebcal integration (parasha, learning, zmanim, holidays, dates), IP geolocation, Israel/Diaspora detection | User-selectable location override, persistent location preferences |
 | Torah Search | **Working** | Sefaria API search with filters, copy button | Local vector search (pgvector) |
-| Q&A Cache | **Working** (needs DB) | Save/retrieve by exact match | Semantic similarity matching |
-| Public Q&A Pages | **Working** | `/answers` browse, `/answers/[slug]` with ISR + JSON-LD QAPage, category filters, related questions, ReactMarkdown, AEO-optimized answer structure (direct answer + key takeaways first) | — |
+| Q&A Cache | **Working** (needs DB) | Save/retrieve by exact match, auto-capitalize question on save | Semantic similarity matching |
+| Public Q&A Pages | **Working** | `/answers` browse (default: most viewed), `/answers/[slug]` with ISR + JSON-LD QAPage, accordion PAA (random 5 from top 15), follow-up input with context passing (sessionStorage → `/study`), sticky mobile bottom bar, topics sidebar (mobile: below content), auto-capitalized questions, AEO-optimized meta descriptions (first 2-3 sentences) | — |
 | Topic Pages | **Working** | `/topics` index, `/topics/[slug]` per-category, CollectionPage JSON-LD, ISR | — |
-| Admin Review Queue | **Working** | AI scoring, rendered preview, edit/save/approve/reject, regenerate answer (re-runs RAG pipeline), image generation with preview | Bulk actions |
+| Admin Review Queue | **Working** | AI scoring, rendered preview, edit/save/approve/reject, regenerate answer (re-runs RAG pipeline), image generation with preview, auto-capitalize question on approval, AEO meta description generation | Bulk actions |
 | AI Image Generation | **Working** | DALL-E gpt-image-1 (minimal watercolor style), Sharp compression, Cloudflare R2 storage, admin preview + regenerate | — |
 | Contact Form | **Working** | Zod validation, Resend email | — |
 | Rate Limiting | **Working** (needs Redis) | Per-IP sliding windows (ioredis sorted sets) | Per-user limits |

@@ -1,4 +1,5 @@
 import { eq, ne, and, sql } from 'drizzle-orm'
+import { revalidatePath } from 'next/cache'
 import Anthropic from '@anthropic-ai/sdk'
 import { isAdmin } from '@/lib/admin'
 import { getDb } from '@/lib/db'
@@ -8,6 +9,7 @@ import { generateFeaturedImage } from '@/lib/image-gen'
 import { classifyIntent } from '@/lib/rag/intent'
 import { retrieve, formatSourcesForPrompt } from '@/lib/rag/retrieval'
 import { buildStudyPartnerSystemPrompt } from '@/lib/ai/prompts'
+import { cacheDel } from '@/lib/redis'
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { authorized } = await isAdmin()
@@ -85,6 +87,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         ...(featuredImageUrl ? { featuredImageUrl } : {}),
       })
       .where(eq(qaPairs.id, id))
+
+    await cacheDel('qa:all-slugs')
+    revalidatePath('/sitemap.xml')
+    revalidatePath('/llms.txt')
+    revalidatePath('/answers')
+    revalidatePath('/topics')
 
     return Response.json({ status: 'approved', id, featuredImageUrl })
   }
