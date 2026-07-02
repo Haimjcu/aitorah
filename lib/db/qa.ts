@@ -28,8 +28,10 @@ export async function saveQaPair(
     const topics = Array.from(new Set(sources.flatMap((s) => s.topic_slug ? [s.topic_slug] : [])))
     const categories = Array.from(new Set(sources.flatMap((s) => s.categories)))
 
+    const capitalizedQuestion = question.charAt(0).toUpperCase() + question.slice(1)
+
     await db.insert(qaPairs).values({
-      question,
+      question: capitalizedQuestion,
       questionNormalized: normalizeQuestion(question),
       answerMarkdown,
       sourceRefs,
@@ -152,7 +154,7 @@ async function _fetchPublishedBySlug(slug: string) {
 export async function getRelatedQaPairs(currentId: string, categories: string[] | null, limit = 5) {
   try {
     const db = getDb()
-    const results = await db.select({
+    const pool = await db.select({
       slug: qaPairs.slug,
       question: qaPairs.question,
       categories: qaPairs.categories,
@@ -166,9 +168,46 @@ export async function getRelatedQaPairs(currentId: string, categories: string[] 
         )
       )
       .orderBy(desc(qaPairs.viewCount))
-      .limit(limit)
+      .limit(15)
 
-    return results
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]]
+    }
+
+    return pool.slice(0, limit)
+  } catch {
+    return []
+  }
+}
+
+const EXCLUDED_QA_IDS = ['07376054-1019-4190-947a-be2f40d75ab0']
+
+export async function getTrendingQaPairs(limit = 8) {
+  try {
+    const db = getDb()
+    const pool = await db.select({
+      slug: qaPairs.slug,
+      question: qaPairs.question,
+      categories: qaPairs.categories,
+      viewCount: qaPairs.viewCount,
+    })
+      .from(qaPairs)
+      .where(
+        and(
+          eq(qaPairs.status, 'approved'),
+          ...EXCLUDED_QA_IDS.map(id => ne(qaPairs.id, id)),
+        )
+      )
+      .orderBy(desc(qaPairs.viewCount))
+      .limit(16)
+
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]]
+    }
+
+    return pool.slice(0, limit)
   } catch {
     return []
   }

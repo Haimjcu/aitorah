@@ -1,5 +1,9 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { HeroChat } from '@/components/home/HeroChat'
+import { getTrendingQaPairs } from '@/lib/db/qa'
+
+export const revalidate = 1800
 
 export const metadata: Metadata = {
   title: 'AI Torah — Explore Torah With The Help Of Artificial Intelligence',
@@ -7,7 +11,8 @@ export const metadata: Metadata = {
   alternates: { canonical: '/' },
 }
 
-export default function HomePage() {
+export default async function HomePage() {
+  const trending = process.env.DATABASE_URL ? await getTrendingQaPairs(8) : []
   return (
     <div className="bg-[var(--bg)]">
       {/* Hero */}
@@ -71,6 +76,49 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Trending questions */}
+      {trending.length > 0 && (
+        <section className="py-16 bg-[var(--surface-alt)]">
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="text-center mb-8">
+              <h2 className="font-serif text-3xl font-bold mb-2">Trending Questions</h2>
+              <p className="text-[var(--text-sec)] text-sm">See what others are exploring</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {trending.map((item) => (
+                <Link
+                  key={item.slug}
+                  href={`/answers/${item.slug}`}
+                  className="group bg-white border border-[var(--border)] rounded-lg p-5 hover:shadow-md hover:border-[var(--primary)] transition-all"
+                >
+                  <h3 className="font-serif font-bold text-[var(--primary)] text-sm leading-snug mb-3 group-hover:text-[var(--primary-light)] transition-colors line-clamp-3">
+                    {item.question}
+                  </h3>
+                  <div className="flex items-center justify-between">
+                    {item.categories?.[0] && (
+                      <span className="text-xs bg-[var(--surface-alt)] text-[var(--text-sec)] px-2 py-0.5 rounded">
+                        {item.categories[0]}
+                      </span>
+                    )}
+                    {item.viewCount != null && item.viewCount > 0 && (
+                      <span className="text-xs text-[var(--text-sec)]">{item.viewCount} views</span>
+                    )}
+                  </div>
+                </Link>
+              ))}
+            </div>
+            <div className="text-center mt-8">
+              <Link
+                href="/answers"
+                className="text-sm font-medium text-[var(--primary-light)] hover:underline"
+              >
+                Browse all questions &rarr;
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Torah quote example */}
       <section className="pb-16">

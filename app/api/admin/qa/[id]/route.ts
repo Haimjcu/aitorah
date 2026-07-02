@@ -52,7 +52,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!existing) return Response.json({ error: 'Not found' }, { status: 404 })
 
   if (action === 'approve') {
-    const finalQuestion = question ?? existing.question
+    const rawQuestion = question ?? existing.question
+    const finalQuestion = rawQuestion.charAt(0).toUpperCase() + rawQuestion.slice(1)
     const finalAnswer = answerMarkdown ?? existing.answerMarkdown
     const autoTitle = metaTitle ?? `${finalQuestion} — AI Torah`
     const plainText = finalAnswer
@@ -63,7 +64,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       .replace(/^[-*>]\s+/gm, '')
       .replace(/\n+/g, ' ')
       .trim()
-    const autoDesc = metaDescription ?? plainText.slice(0, 155).trim() + '...'
+    const sentences = plainText.match(/[^.!?]+[.!?]+/g) ?? []
+    const directAnswer = sentences.slice(0, 3).join('').trim()
+    const autoDesc = metaDescription ?? (directAnswer.length > 50 ? directAnswer.slice(0, 160).trim() : plainText.slice(0, 155).trim() + '...')
     const slug = existing.slug ?? id
 
     let featuredImageUrl = existing.featuredImageUrl

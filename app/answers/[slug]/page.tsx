@@ -15,7 +15,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!qa || 'redirect' in qa) return {}
 
   const title = qa.metaTitle ?? `${qa.question} — AI Torah`
-  const description = qa.metaDescription ?? qa.answerMarkdown.slice(0, 155).replace(/\n/g, ' ').trim()
+  const plainFallback = qa.answerMarkdown.replace(/#{1,6}\s+/g, '').replace(/\*{1,3}([^*]+)\*{1,3}/g, '$1').replace(/\n+/g, ' ').trim()
+  const fallbackSentences = plainFallback.match(/[^.!?]+[.!?]+/g) ?? []
+  const fallbackDesc = fallbackSentences.length >= 2
+    ? fallbackSentences.slice(0, 3).join('').trim().slice(0, 160)
+    : plainFallback.slice(0, 155) + '...'
+  const description = qa.metaDescription ?? fallbackDesc
   const url = `https://aitorah.ai/answers/${slug}`
 
   const ogImage = qa.featuredImageUrl
