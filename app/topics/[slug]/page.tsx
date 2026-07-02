@@ -33,7 +33,7 @@ export default async function TopicPage({ params, searchParams }: Props) {
   if (!cat) notFound()
 
   const page = Math.max(1, parseInt(sp.page ?? '1'))
-  const sort: 'date' | 'views' = sp.sort === 'views' ? 'views' : 'date'
+  const sort: 'date' | 'views' = sp.sort === 'date' ? 'date' : 'views'
 
   const [data, allStats] = await Promise.all([
     getPublishedQaPairs({ category: cat.name, page, limit: 30, sort }),
@@ -62,7 +62,7 @@ export default async function TopicPage({ params, searchParams }: Props) {
   }
 
   const basePath = `/topics/${slug}`
-  const sortParam = sort !== 'date' ? `sort=${sort}` : ''
+  const sortParam = sort !== 'views' ? `sort=${sort}` : ''
 
   return (
     <QaPageLayout categoryStats={allStats} activeCategory={cat.name}>

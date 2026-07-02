@@ -13,7 +13,7 @@ export function TopicsSidebar({ categoryStats, activeCategory, mobile }: TopicsS
 
   if (mobile) {
     return (
-      <div className="md:hidden mb-8">
+      <div className="md:hidden mt-8">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-sec)] mb-3">Topics</h3>
         <div className="grid grid-cols-2 gap-2">
           <Link

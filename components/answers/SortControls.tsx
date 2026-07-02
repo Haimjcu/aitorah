@@ -15,7 +15,7 @@ export function SortControls({ currentSort, basePath }: SortControlsProps) {
     <div className="flex gap-2 mb-6">
       {SORTS.map((s) => {
         const isActive = currentSort === s.key
-        const href = s.key === 'date' ? basePath : `${basePath}?sort=views`
+        const href = s.key === 'views' ? basePath : `${basePath}?sort=date`
         return (
           <Link
             key={s.key}

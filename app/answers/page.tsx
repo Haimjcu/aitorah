@@ -17,7 +17,7 @@ type Props = { searchParams: Promise<{ page?: string; sort?: string }> }
 export default async function AnswersPage({ searchParams }: Props) {
   const sp = await searchParams
   const page = Math.max(1, parseInt(sp.page ?? '1'))
-  const sort: 'date' | 'views' = sp.sort === 'views' ? 'views' : 'date'
+  const sort: 'date' | 'views' = sp.sort === 'date' ? 'date' : 'views'
 
   if (!process.env.DATABASE_URL) {
     return (
@@ -45,7 +45,7 @@ export default async function AnswersPage({ searchParams }: Props) {
     ],
   }
 
-  const sortParam = sort !== 'date' ? `sort=${sort}` : ''
+  const sortParam = sort !== 'views' ? `sort=${sort}` : ''
 
   return (
     <QaPageLayout categoryStats={categoryStats}>
