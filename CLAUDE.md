@@ -14,7 +14,10 @@ The AI layer is being rebuilt. The current single-prompt pipeline (described und
 - **Memory**: per-user and per-project memory, plus agent-level learnings per domain.
 - **Self-learning loop**: user corrections and eval failures produce *proposed* skill/prompt changes. Low-risk changes auto-apply after passing evals. Halachic or doctrinal changes need admin (owner) approval.
 - **Projects**: logged-in users keep projects with their own memory, chat history, and uploaded files and images used as context.
-- **Languages**: English, Hebrew, French, Spanish, Russian, Yiddish (UI and answers). Hebrew and Yiddish are RTL. Any other language found in chat data needs owner approval before it is added.
+- **Languages**: English, Hebrew, French, Spanish, Russian, Yiddish, Portuguese, German (UI and answers). Hebrew and Yiddish are RTL. Any other language needs owner approval before it is added.
+- **Nusach/community**: ask once and store it in the user profile; lead with that practice and label the others. If it is not set, present the main practices, each labeled.
+- **Corrections (option D)**: low-risk corrections auto-apply after evals. High-risk ones from trusted reviewers are pre-reviewed by them. Halachic changes always need final owner approval.
+- **Hosting**: the agent loop runs on our own Railway server (Messages API + tools), not Managed Agents.
 
 **Redesign ground rules:**
 - **Data sources do not change**: Sefaria and Hebcal stay the source of texts and calendar. Do not add other text corpora without approval.

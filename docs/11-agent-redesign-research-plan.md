@@ -1,10 +1,54 @@
 # 11 — Agent Platform Redesign: Research Plan
 
-Status: **research plan, not started** · Created 2026-11-23
+Status: **in progress (Phase 1)** · Created 2026-11-23 · Last updated 2026-11-23
 
-Goal: replace the single-prompt RAG pipeline with a skill-based, multi-agent Torah study platform. It adds evals, memory, user projects (with file and image uploads), a correction-driven self-learning loop, and six languages. Sefaria and Hebcal remain the only text and calendar sources.
+Goal: replace the single-prompt RAG pipeline with a skill-based, multi-agent Torah study platform. It adds evals, memory, user projects (with file and image uploads), a correction-driven self-learning loop, and eight languages. Sefaria and Hebcal remain the only text and calendar sources.
 
-This document lists **what we need to learn before we design**. Each phase ends with a written deliverable. The final output is a design doc (`12-agent-platform-design.md`) and an implementation plan.
+This document lists **what we need to learn before we design**. Each phase ends with a written deliverable. The final output is a design doc (`12-agent-platform-design.md`) and an implementation plan. Owner decisions are at the bottom.
+
+---
+
+## Progress
+
+| Phase | Status | Notes |
+|---|---|---|
+| 0. Data access & export | ✅ Done | 650 study sessions (2,800 user turns), 3,183 qa_pairs, 77 users. Anonymized export in `analysis/data/` (git-ignored). Temporary DB proxy deleted after each export. |
+| — Interim model upgrade | ✅ Done (commit `b38ceb7`) | Sonnet 4.6 → Sonnet 5.5 (answers), Haiku 4.5 → Haiku 5.5 (classifier), central config `lib/ai/models.ts`, refusal/truncation handling, thinking-block fix in the classifier. |
+| 1. Corpus analysis | ✅ Labels done; hand validation pending | 5,985 messages labeled by Haiku 5.5 (batch, $0.84). Full numbers: `analysis/taxonomy-report.md`. |
+| 2–8 | ⏳ Next: Phase 2 skills | Proposed agent groups below. |
+
+**Phase 1 results: topic share of all 5,985 messages**
+
+| Domain | % | Notes |
+|---|---|---|
+| Chit-chat / meta | 17.7% | Mostly "continue" requests caused by truncated answers (fixed) |
+| Tanakh & parasha | 12.8% | Biggest Torah topic; many divrei Torah / drasha requests |
+| Halacha | 12.2% | 57% want a practical ruling; **41% depend on community** |
+| Commentators (Rashi, Kli Yakar…) | 7.0% | Often summaries for divrei Torah; 18% pushback |
+| Gemara | 5.8% | Much of it is translating sugyot into Russian; 15% pushback |
+| Kabbalah / Zohar | 4.8% | Heavily French-speaking |
+| Machshava | 4.1% | Afterlife, purpose of creation, proofs of God |
+| Translation requests | 4.0% | Pasted Hebrew/Aramaic → Russian/English |
+| Tefillah | 4.0% | 45% community-dependent |
+| Life guidance, mussar, chassidut, Hebrew words, minhag, history, calendar, interfaith, midrash, mishnah, seekers | 1–3% each | Minhag is 79% community-dependent; history has the highest pushback (18%) |
+
+Question shapes: follow-ups 24%, explanations 18%, source requests 10%, **challenges/corrections 9.6%**, practical rulings 7%, pasted-text translation 6%. Languages (all messages): English 74%, French 9%, mixed 6%, Russian 4%, Hebrew 1%, Spanish 1%, Portuguese 1%, German 0.2%, real Yiddish ~0. 1,752 messages use transliterated Hebrew.
+
+**Proposed specialist agents (input to Phase 2):**
+1. **Tanakh & Parasha**: Tanakh, parasha, commentators, midrash (~21%). Skills: verse lookup, commentator comparison, divrei Torah / drasha writing, long-form output.
+2. **Halacha & Minhag**: halacha, minhag, practical tefillah and calendar questions (~16%). Skills: posek chain (Rambam → Shulchan Aruch → Mishnah Berurah…), community-practice handling (nusach profile), "ask your rabbi" guardrail.
+3. **Gemara & Mishnah**: Gemara, Mishnah, and translation of their texts (~11%). Skills: sugya walkthrough, Rashi/Tosafot, faithful word-by-word translation into the user's language.
+4. **Kabbalah & Chassidut** (~7%). Skills: Zohar/Tanya/Likutei Moharan sourcing, attribution to specific rebbes, avoiding speculative claims.
+5. **Machshava, Mussar & Life**: philosophy, mussar, life guidance, interfaith, seekers (~11%). Skills: sensitive pastoral tone, non-Jewish seekers/Noahides, interfaith care.
+6. **Shared skills** for all agents: calendar/zmanim tools, Hebrew/Aramaic word meaning, translation of pasted text, citation verification, continuation of long answers.
+
+**Findings so far (before the topic classification):**
+- qa_pairs grew from ~116 a month (June) to ~1,018 (October). 200 rows dated 2023-06 look like seed data.
+- 315 of 650 sessions are a single question; the average is 4.3 user turns per session.
+- Languages from a script-based first pass: English ≈ 5,300 messages, Hebrew ≈ 210, Russian ≈ 190, French ≈ 170, Spanish ≈ 30, Portuguese ≈ 20, German: a handful. No Yiddish detected yet; the AI pass will check.
+- Users paste whole articles and ask for a translation, mostly into Russian. That is a distinct use case to support.
+- The `qa_pairs.language` column is `en` for every row, so it is never actually filled in.
+- The API key in local `.env` is invalid, and the `.env` `DATABASE_URL` points to a deleted proxy. Local dev needs fresh values.
 
 ---
 
@@ -44,7 +88,7 @@ Reusable as-is: Sefaria client and its LRU caches, Hebcal resolver, geolocation,
 Questions to answer:
 - What are users actually asking? Build a **domain taxonomy** from the data. The starting hypothesis is: halacha, chassidut, gemara/Talmud, tanakh & parsha, mefarshim/commentary, kabbalah, machshava/philosophy, mussar/middot, tefillah/liturgy, minhag/customs, calendar/zmanim, Jewish history, Hebrew/Aramaic language, life & guidance questions, off-topic. Domains may merge or split based on the data.
 - Within each domain, which **sub-types** appear (e.g. halacha → practical "can I", source-of-a-law, machloket comparison)? Sub-types drive skills.
-- Which **languages and scripts** appear? Detect per message: Hebrew vs. Yiddish (they share a script, so this needs care), Russian, French, Spanish, transliterated Hebrew, and anything else. **Any language outside the six approved ones goes to the owner for approval.**
+- Which **languages and scripts** appear? Detect per message: Hebrew vs. Yiddish (they share a script, so this needs care), Russian, French, Spanish, Portuguese, German, transliterated Hebrew, and anything else. **Any language outside the eight approved ones goes to the owner for approval.**
 - Where did the current system **fail**? Look for follow-ups such as "that's wrong" or "source?", rephrased repeats, short abandoned sessions, and wrong or missing citations.
 - Which **Sefaria strategies** produced the sources that were actually cited, per domain?
 
@@ -143,7 +187,7 @@ Candidates (Anthropic pricing as of 2026-11, $/1M input/output tokens):
 
 ## Phase 7 — Languages
 
-- **UI**: i18n library for the Next.js App Router (evaluate `next-intl`), locale routing, RTL layout for Hebrew and Yiddish, fonts (Noto Sans Hebrew covers Yiddish; check Cyrillic in Inter).
+- **UI**: i18n library for the Next.js App Router (evaluate `next-intl`), locale routing, RTL layout for Hebrew and Yiddish, fonts (Noto Sans Hebrew covers Yiddish; check Cyrillic and Portuguese/German diacritics in Inter).
 - **Answers**: answer in the user's language. Quote sources in the original Hebrew/Aramaic plus a translation in the user's language. Check how well Sefaria covers French, Spanish, and Russian translations (many texts are English/Hebrew only, so the agent translates and labels it as its own translation).
 - **SEO**: localized `/answers` pages, hreflang, sitemap per locale. Decide whether to translate existing published Q&As.
 - **Evals**: each domain's eval set needs samples in each language. Yiddish especially needs native review.
@@ -158,10 +202,16 @@ Candidates (Anthropic pricing as of 2026-11, $/1M input/output tokens):
 
 ---
 
-## Open decisions for the owner
+## Owner decisions (2026-11-23)
 
-1. **DB access**: OK to temporarily enable a public TCP proxy on Postgres for the export (option a), or prefer running inside Railway (option b)?
-2. **Privacy**: confirm it's OK to analyze logged-in users' chats (anonymized), and whether the privacy policy needs an update before using chats for training skills.
-3. **Correction tiers**: confirm the auto-apply vs. approval split in Phase 5, and whether trusted users (e.g. rabbis) should get elevated correction rights.
-4. **Hosting**: self-hosted agent loop (recommended for chat) vs. Managed Agents.
-5. **Community/nusach defaults**: should the agent default to a specific practice (e.g. Ashkenazi, Chabad) or ask the user?
+1. **DB access**: temporary public TCP proxy on Postgres for exports, deleted right after each export. Scripts: `analysis/scripts/export.cjs`.
+2. **Privacy**: approved to analyze logged-in users' chats, anonymized (salted user hash, no emails).
+3. **Corrections: option D**, a hybrid of risk tiers and trusted reviewers:
+   - Low-risk corrections (formatting, tone, typos, translation fixes, broken source links, retrieval hints) auto-apply after passing evals.
+   - High-risk corrections (halachic ruling, majority/minority labeling, attribution, doctrinal content, safety guardrails) from trusted reviewers (e.g. rabbis the owner designates) are pre-reviewed by them, but **halachic changes always need final owner approval**.
+   - Everyone else's high-risk corrections go to the owner queue.
+   - Corrections change skills/prompts, never a stored answer directly.
+4. **Hosting**: self-hosted agent loop on our own Railway server (Messages API + tool use), like today. No Managed Agents for the chat.
+5. **Community/nusach**: ask the user once and save it to their profile. Answers lead with their practice and mention the others. When it is not set, present the main practices, each labeled.
+6. **Languages**: English, Hebrew, French, Spanish, Russian, Yiddish, **plus Portuguese and German** (both found in chat history, approved). 8 total.
+7. **Models (interim, live)**: Sonnet 5.5 for answers and Haiku 5.5 for the classifier, configured in `lib/ai/models.ts`. To be re-decided per route by evals in Phase 6.
