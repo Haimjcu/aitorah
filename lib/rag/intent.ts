@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
-import { INTENT_MODEL, routeParams } from '@/lib/ai/models'
+import { INTENT_MODEL, routeParams, type UsageLike } from '@/lib/ai/models'
 
 export type IntentType =
   | 'text_lookup'
@@ -33,7 +33,13 @@ export interface ParsedIntent {
   search_terms_he: string[]
   category_hint: string | null
   calendar_params: CalendarParams | null
+  /** Language the user wrote in: en | he | fr | es | ru | yi | pt | de | other */
+  language: string
+  /** Token usage of the classification call (for answer_logs). */
+  usage?: UsageLike
 }
+
+const LANGUAGES = ['en', 'he', 'fr', 'es', 'ru', 'yi', 'pt', 'de']
 
 const INTENT_PROMPT = `You are a Torah reference classification system. Given a user question, extract structured information for retrieval.
 
@@ -45,6 +51,7 @@ Return ONLY valid JSON with these fields:
   "search_terms_en": array of 2-4 English search phrases to find relevant texts,
   "search_terms_he": array of Hebrew search terms if the question contains Hebrew,
   "category_hint": null or one of "Tanakh", "Talmud", "Midrash", "Halakhah", "Kabbalah", "Philosophy", "Liturgy",
+  "language": the language the user wrote in (not of quoted sources): one of "en", "he", "fr", "es", "ru", "yi", "pt", "de", "other". Yiddish uses Hebrew letters with Germanic words (איז, נישט, וואס); English with transliterated Hebrew terms is "en",
   "calendar_params": null for non-calendar types, or {
     "needs_location": boolean (true for zmanim, shabbat times, parasha — anything location-sensitive),
     "date_reference": null or string like "today", "tomorrow", "this_week", "2026-06-17",
@@ -133,6 +140,8 @@ export async function classifyIntent(
       search_terms_he: Array.isArray(parsed.search_terms_he) ? parsed.search_terms_he : [],
       category_hint: parsed.category_hint ?? null,
       calendar_params: calendarParams,
+      language: LANGUAGES.includes(parsed.language) ? parsed.language : 'other',
+      usage: response.usage,
     }
   } catch {
     return {
@@ -143,6 +152,8 @@ export async function classifyIntent(
       search_terms_he: [],
       category_hint: null,
       calendar_params: null,
+      language: 'other',
+      usage: response.usage,
     }
   }
 }

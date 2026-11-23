@@ -20,7 +20,8 @@ export function generateSlug(question: string): string {
 export async function saveQaPair(
   question: string,
   answerMarkdown: string,
-  sources: RetrievedSource[]
+  sources: RetrievedSource[],
+  language?: string
 ): Promise<void> {
   try {
     const db = getDb()
@@ -38,6 +39,7 @@ export async function saveQaPair(
       topics: topics.length > 0 ? topics : null,
       categories: categories.length > 0 ? categories : null,
       slug: generateSlug(question),
+      ...(language ? { language } : {}),
     }).onConflictDoNothing()
   } catch (error) {
     console.error('Failed to save Q&A pair:', error)

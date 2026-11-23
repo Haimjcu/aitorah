@@ -2,7 +2,8 @@ import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { retrieve, formatSourcesForPrompt, sourcesToClientFormat } from '@/lib/rag/retrieval'
 import { buildStudyPartnerSystemPrompt } from '@/lib/ai/prompts'
-import { ANSWER_MODEL, routeParams } from '@/lib/ai/models'
+import { ANSWER_MODEL, INTENT_MODEL, routeParams } from '@/lib/ai/models'
+import { logAnswer, type ModelCall } from '@/lib/db/answer-logs'
 import { saveQaPair, findSimilarQuestion } from '@/lib/db/qa'
 import { checkRateLimit } from '@/lib/ratelimit'
 import { classifyIntent } from '@/lib/rag/intent'
@@ -13,6 +14,7 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 const hasDb = !!process.env.DATABASE_URL
 
 export async function POST(req: NextRequest) {
+  const startedAt = Date.now()
   try {
     const rateLimited = await checkRateLimit(req)
     if (rateLimited) return rateLimited
@@ -26,10 +28,12 @@ export async function POST(req: NextRequest) {
     if (!lastUserMessage) {
       return Response.json({ error: 'No user message found' }, { status: 400 })
     }
+    const turn = messages.filter((m: { role: string }) => m.role === 'user').length
 
     if (hasDb && messages.length <= 1) {
       const cached = await findSimilarQuestion(lastUserMessage.content)
       if (cached) {
+        logAnswer({ pipeline: 'legacy', calls: [], cacheHit: true, latencyMs: Date.now() - startedAt, turn })
         const encoder = new TextEncoder()
         const sourcesJson = JSON.stringify(
           cached.sourceRefs.map((ref) => ({ ref, type: '', similarity: 0, hebrew: '', english: '' }))
@@ -84,15 +88,18 @@ export async function POST(req: NextRequest) {
       async start(controller) {
         controller.enqueue(encoder.encode(`<!--SOURCES:${JSON.stringify(clientSources)}-->`))
 
+        let ttftMs: number | null = null
         for await (const chunk of stream) {
           if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
+            if (ttftMs === null) ttftMs = Date.now() - startedAt
             fullAnswer += chunk.delta.text
             controller.enqueue(encoder.encode(chunk.delta.text))
           }
         }
 
         // Don't cache refused or truncated answers.
-        const { stop_reason } = await stream.finalMessage()
+        const final = await stream.finalMessage()
+        const { stop_reason } = final
         let complete = stop_reason === 'end_turn'
         if (stop_reason === 'refusal') {
           console.warn('Chat answer refused by model')
@@ -107,8 +114,21 @@ export async function POST(req: NextRequest) {
         }
         controller.close()
 
+        const calls: ModelCall[] = [{ model: final.model, usage: final.usage }]
+        if (intent.usage) calls.unshift({ model: INTENT_MODEL.model, usage: intent.usage })
+        logAnswer({
+          pipeline: 'legacy',
+          intent: intent.type,
+          language: intent.language,
+          calls,
+          latencyMs: Date.now() - startedAt,
+          ttftMs,
+          stopReason: stop_reason,
+          turn,
+        })
+
         if (hasDb && complete && fullAnswer.length > 50) {
-          saveQaPair(lastUserMessage.content, fullAnswer, sources).catch(() => {})
+          saveQaPair(lastUserMessage.content, fullAnswer, sources, intent.language).catch(() => {})
         }
       },
     })

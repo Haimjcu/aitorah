@@ -4,7 +4,7 @@ Status: **in progress (Phase 1)** · Created 2026-11-23 · Last updated 2026-11-
 
 Goal: replace the single-prompt RAG pipeline with a skill-based, multi-agent Torah study platform. It adds evals, memory, user projects (with file and image uploads), a correction-driven self-learning loop, and eight languages. Sefaria and Hebcal remain the only text and calendar sources.
 
-This document lists **what we need to learn before we design**. Each phase ends with a written deliverable. The final output is a design doc (`12-agent-platform-design.md`) and an implementation plan. Owner decisions are at the bottom.
+This document lists **what we need to learn before we design**. Each phase ends with a written deliverable. The build plan is `docs/12-agent-platform-build-plan.md`. Owner decisions are at the bottom.
 
 ---
 

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## ⚠️ Active Redesign: Agent Platform (started 2026-11-23)
 
-The AI layer is being rebuilt. The current single-prompt pipeline (described under "Architecture" below) is the **legacy** system. It stays in production until the new system passes evals. The research plan is in `docs/11-agent-redesign-research-plan.md`. Read it before touching anything under `lib/ai/`, `lib/rag/`, or `app/api/chat/`.
+The AI layer is being rebuilt. The current single-prompt pipeline (described under "Architecture" below) is the **legacy** system. It stays in production until the new system passes evals. The research plan is in `docs/11-agent-redesign-research-plan.md`; the build plan (awaiting owner approval; do not build before it is approved) is in `docs/12-agent-platform-build-plan.md`. Read it before touching anything under `lib/ai/`, `lib/rag/`, or `app/api/chat/`.
 
 **Target system (what we are building toward):**
 - **Agent harness**: a tool-using agent loop, not one prompt. Retrieval (Sefaria, Hebcal) becomes tools the agent calls.
@@ -45,7 +45,14 @@ npx drizzle-kit generate   # Generate migration from schema changes
 npx drizzle-kit push       # Push schema to database
 ```
 
-There is no test suite.
+**Local development (agent platform work happens on the `harness` branch):** the local `.env` keys are stale. Use `scripts/dev-local.sh <command>`. It injects the `aitorah` service's secrets from Railway in memory (never written to disk) and points `DATABASE_URL` at a local Docker Postgres (`aitorah-pg`, port 5433, setup command in the script). It disables Redis.
+
+```bash
+scripts/dev-local.sh npm run dev
+scripts/dev-local.sh npx drizzle-kit migrate   # apply drizzle/*.sql to the local DB
+```
+
+There is no unit test suite. Quality is measured by the eval harness (milestone M1 of the build plan).
 
 ## Architecture
 
