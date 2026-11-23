@@ -1,6 +1,6 @@
 # 12 — Agent Platform: Build Plan
 
-Status: **decisions answered 2026-11-23; awaiting final go-ahead to start building** · Created 2026-11-23
+Status: **building on `harness` (M0–M7 built and tested locally; quality tuning and owner reviews before launch)** · Created 2026-11-23
 
 Builds on `docs/11-agent-redesign-research-plan.md` (research, chat-corpus findings, owner decisions). This doc is the **how and in what order**.
 
@@ -23,6 +23,39 @@ Builds on `docs/11-agent-redesign-research-plan.md` (research, chat-corpus findi
 **Found during M2:** legacy retrieval calls Sefaria with `version=primary`, which returns Hebrew/Aramaic only, so the legacy prompt never gets Sefaria's English translations. The agent tools request Hebrew + English + the user's language.
 
 **Found during M0 (production bug, legacy):** `/api/chat` saves *every* turn to `qa_pairs`, including follow-ups like "and without the a?", which then lack context on public SEO pages. The cache lookup only runs on first turns, but the save runs on all of them. Fix: save only first-turn answers (one-line change). Awaiting owner decision.
+
+## Eval results so far (2026-11-23)
+
+| Run | Pass | Overall | Accuracy | Sourcing | Key points | $/answer |
+|---|---|---|---|---|---|---|
+| Legacy, all 255 (Opus judge) | 37% | 3.11 | 3.44 | 3.20 | 65% | 0.029 |
+| Agent v0, all 255 (Opus judge) | 33% | 3.15 | 3.60 | 2.87 | 64% | 0.027 |
+| Legacy, train 129 | 33% | 3.05 | 3.44 | 3.16 | 63% | 0.030 |
+| Agent variant A (sourcing + completeness prompt), train 129 | 36% | 3.13 | 3.56 | 3.02 | 67% | 0.040 |
+| Agent variant B (A + high effort), train 129 | 43% | 3.09 | 3.36 | 3.14 | 61% | 0.071 |
+
+- **A vs. legacy is not a real difference yet.** 19 questions only the agent passed vs. 15 only legacy passed; sign-test p ≈ 0.61. A was also tuned on this split and judged by Opus only. Treat the two as tied on answer quality until the test split says otherwise.
+- **Judge bias found:** Opus-as-judge scored Opus-written halacha answers 100% pass; Sonnet-as-judge scored the same answers 4%. Evals now average an Opus + Sonnet judge panel. Human calibration (blind grading page) is required before trusting absolute numbers.
+- **Halacha:** Opus 5.5 answers had **0 serious errors** under both judges (Sonnet-based setups: 8–10 of 23). Halacha is now routed to Opus (`HALACHA_ANSWER_MODEL`), at about 5× cost for those answers (≈ +45% total). Owner to confirm.
+- Variant A chosen as default (medium effort). B is slower, costlier, and less accurate despite more passes.
+- **Running:** final held-out test split (127 cases) for legacy vs. agent with the judge panel.
+
+## Open items (owner)
+
+1. Blind grading with the rabbi: https://claude.ai/artifact/QemwydUsp92BmYBTGurpX9 (share it with him with interact access). Private key: `analysis/data/blind-key.json`.
+2. Review `evals/halacha-review.md` (40 rubrics) and `skills/domain-halacha_minhag.md` with the rabbi. Draft v3 (Mechaber/Rema guidance) is in the DB, not active, and showed no gain.
+3. Decide the learning loop's waiting proposal (wig correction, halacha skill draft v2) in `/admin/corrections`.
+4. Confirm or reject Opus for halacha.
+5. Native review of `lib/i18n/messages/{he,fr,ru}.json` (then the rest).
+6. Real scanned sefer-page upload test.
+7. OK to bulk-reject ~522 pending contextless follow-up rows in production `qa_pairs`.
+8. Commit the `harness` work, then follow the runbook.
+
+## Open items (engineering)
+
+- Latency: ~76–80 s per answer under eval load. Measure single-user latency; reduce tool rounds and add streaming progress.
+- Invented-source rate: the earlier "bad refs" metric counted Sefaria rate limits as invalid. Fixed (`lib/sefaria/verify.ts`); recheck of baseline refs is running.
+- Quality: topic-by-topic tuning on the train split (Gemara, halacha, calendar first) after the rubrics are human-reviewed. Use more cases or repeated judging to detect ~5-point gains.
 
 ## Launch runbook (M8)
 
