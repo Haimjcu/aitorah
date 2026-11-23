@@ -10,9 +10,13 @@ Builds on `docs/11-agent-redesign-research-plan.md` (research, chat-corpus findi
 
 | Milestone | Status | Notes |
 |---|---|---|
-| M0 Foundations | ✅ Done (local, uncommitted) | SDK 1.12; migration `drizzle/0003_agent_platform.sql` (13 new tables + `study_sessions.project_id`, additive only); `lib/limits.ts` (all unlimited); `lib/flags.ts` kill switch; `answer_logs` written by legacy chat (tokens, cost, latency, TTFT, cache hits); `qa_pairs.language` filled; local dev via `scripts/dev-local.sh` + Docker Postgres; `npm run dev` uses webpack. Verified end-to-end with a French question. |
-| M1 Eval harness | 🔄 Started | `analysis/scripts/select-evals.cjs` picks 392 candidates for 260 cases; `analysis/scripts/draft-evals.ts` (Opus 5.5 batch rubrics + Sefaria ref check + halacha review sheet) written, **not yet run** (~$10–15). Grader + runner still to build. |
-| M2–M8 | ⏳ | |
+| M0 Foundations | ✅ Done (committed) | SDK 1.12; migration `drizzle/0003_agent_platform.sql` (13 new tables + `study_sessions.project_id`, additive only); `lib/limits.ts` (all unlimited); `lib/flags.ts` kill switch; `answer_logs` written by legacy chat (tokens, cost, latency, TTFT, cache hits); `qa_pairs.language` filled; local dev via `scripts/dev-local.sh` + Docker Postgres; `npm run dev` uses webpack. Verified end-to-end with a French question. |
+| M1 Eval harness | ✅ Built; baseline running | 255 eval cases in `evals/cases.jsonl` (7 languages, ~25% past failures, rubrics by Opus 5.5, 882/888 cited refs verified on Sefaria). Halacha review sheet for owner + rabbi: `evals/halacha-review.md` (40 cases). Runner `npm run eval -- --target legacy|agent` with Opus judge + Sefaria ref check; reports in `evals/runs/`. |
+| M2 Agent harness | ✅ Built, tested locally | `lib/agent/` (router, tools, loop, citation check), `/api/agent` SSE endpoint (kill switch → legacy), ChatInterface streams status/sources, saves only first-turn Q&A. Uses server-side refusal fallbacks + prompt caching. |
+| M3 Skills | 🔄 In progress | 5 domain + 5 shared skill packs in `skills/` (all example refs verified on Sefaria), versioned in DB via `scripts/seed-skills.ts`. **Halacha skill needs owner + rabbi approval.** Admin skill editor still to build. |
+| M4–M8 | ⏳ | |
+
+**Found during M2:** legacy retrieval calls Sefaria with `version=primary`, which returns Hebrew/Aramaic only, so the legacy prompt never gets Sefaria's English translations. The agent tools request Hebrew + English + the user's language.
 
 **Found during M0 (production bug, legacy):** `/api/chat` saves *every* turn to `qa_pairs`, including follow-ups like "and without the a?", which then lack context on public SEO pages. The cache lookup only runs on first turns, but the save runs on all of them. Fix: save only first-turn answers (one-line change). Awaiting owner decision.
 

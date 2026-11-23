@@ -37,13 +37,20 @@ async function fetchSefaria<T>(path: string, options?: RequestInit & { ttlMs?: n
   const cached = getCached<T>(cacheKey)
   if (cached) return cached
 
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
-  })
+  // Retry rate limits and transient server errors with backoff (agent tools and eval checks make bursts of calls).
+  let res: Response
+  for (let attempt = 0; ; attempt++) {
+    res = await fetch(`${BASE_URL}${path}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers,
+      },
+    })
+    if (![429, 502, 503, 504].includes(res.status) || attempt >= 3) break
+    const retryAfter = Number(res.headers.get('retry-after')) || 0
+    await new Promise((r) => setTimeout(r, Math.max(retryAfter * 1000, 1000 * 2 ** attempt)))
+  }
 
   if (!res.ok) {
     throw new Error(`Sefaria API error: ${res.status} ${res.statusText} for ${path}`)
@@ -56,10 +63,10 @@ async function fetchSefaria<T>(path: string, options?: RequestInit & { ttlMs?: n
 
 export async function getTexts(
   ref: string,
-  opts?: { version?: string; returnFormat?: string }
+  opts?: { version?: string | string[]; returnFormat?: string }
 ): Promise<SefariaTextResponse> {
   const params = new URLSearchParams()
-  if (opts?.version) params.set('version', opts.version)
+  for (const v of [opts?.version ?? []].flat()) params.append('version', v)
   params.set('return_format', opts?.returnFormat ?? 'text_only')
   const qs = params.toString()
   return fetchSefaria<SefariaTextResponse>(`/api/v3/texts/${encodeURIComponent(ref)}?${qs}`, {

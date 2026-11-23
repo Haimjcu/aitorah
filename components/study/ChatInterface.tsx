@@ -8,7 +8,7 @@ import { CopyButton } from '@/components/ui/CopyButton'
 import { LogoMark } from '@/components/ui/LogoMark'
 import { AuthModal } from './AuthModal'
 
-type Source = { ref: string; type: string; similarity: number; hebrew: string; english: string }
+type Source = { ref: string; type?: string; category?: string; similarity?: number; hebrew?: string; english?: string; url?: string }
 
 type Message = {
   role: 'user' | 'assistant'
@@ -53,6 +53,7 @@ export function ChatInterface() {
   const isAuthenticated = authStatus === 'authenticated'
 
   const [messages, setMessages] = useState<Message[]>([GREETING])
+  const [statusLabel, setStatusLabel] = useState<string | null>(null)
   const [input, setInput] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
   const [openSources, setOpenSources] = useState<number[]>([])
@@ -185,12 +186,21 @@ export function ChatInterface() {
       }
     }
 
-    try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: [...messages, userMsg].map(({ role, content }) => ({ role, content })) }),
+    const payload = JSON.stringify({ messages: [...messages, userMsg].map(({ role, content }) => ({ role, content })) })
+    const updateLast = (patch: Partial<Message>) =>
+      setMessages((m) => {
+        const copy = [...m]
+        copy[copy.length - 1] = { ...copy[copy.length - 1], ...patch }
+        return copy
       })
+
+    try {
+      // New agent endpoint first; it returns 404 when disabled (kill switch), then fall back to legacy.
+      let res = await fetch('/api/agent', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload })
+      const useAgent = res.status !== 404
+      if (!useAgent) {
+        res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload })
+      }
       if (!res.ok) {
         const data = await res.json().catch(() => null)
         throw new Error(data?.error ?? 'Something went wrong. Please try again.')
@@ -200,46 +210,61 @@ export function ChatInterface() {
       const decoder = new TextDecoder()
       let fullContent = ''
       let sources: Source[] = []
-      let sourcesParsed = false
 
       setMessages((m) => [...m, { role: 'assistant', content: '' }])
 
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        fullContent += decoder.decode(value, { stream: true })
-
-        if (!sourcesParsed && fullContent.includes('-->')) {
-          const match = fullContent.match(/<!--SOURCES:(.*?)-->/)
-          if (match) {
-            try { sources = JSON.parse(match[1]) } catch { /* ignore */ }
-            fullContent = fullContent.replace(/<!--SOURCES:.*?-->/, '')
-            sourcesParsed = true
+      if (useAgent) {
+        // Server-Sent Events from /api/agent
+        let buffer = ''
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          buffer += decoder.decode(value, { stream: true })
+          const events = buffer.split('\n\n')
+          buffer = events.pop() ?? ''
+          for (const raw of events) {
+            if (!raw.startsWith('data: ')) continue
+            let ev: { type: string; [k: string]: unknown }
+            try { ev = JSON.parse(raw.slice(6)) } catch { continue }
+            if (ev.type === 'status') setStatusLabel(String(ev.label))
+            else if (ev.type === 'text') {
+              fullContent += String(ev.delta)
+              updateLast({ content: fullContent })
+            } else if (ev.type === 'sources') {
+              sources = (ev.sources as Source[]) ?? []
+              if (sources.length) updateLast({ sources })
+            } else if (ev.type === 'error') {
+              throw new Error(String(ev.message))
+            }
           }
         }
+      } else {
+        // Legacy text stream with <!--SOURCES:...--> prefix
+        let sourcesParsed = false
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          fullContent += decoder.decode(value, { stream: true })
 
-        const displayContent = sourcesParsed ? fullContent : fullContent.replace(/<!--SOURCES:.*/, '')
+          if (!sourcesParsed && fullContent.includes('-->')) {
+            const match = fullContent.match(/<!--SOURCES:(.*?)-->/)
+            if (match) {
+              try { sources = JSON.parse(match[1]) } catch { /* ignore */ }
+              fullContent = fullContent.replace(/<!--SOURCES:.*?-->/, '')
+              sourcesParsed = true
+            }
+          }
 
-        setMessages((m) => {
-          const copy = [...m]
-          copy[copy.length - 1] = { role: 'assistant', content: displayContent, sources: sources.length > 0 ? sources : undefined }
-          return copy
-        })
-      }
-
-      if (sources.length > 0) {
-        setMessages((m) => {
-          const copy = [...m]
-          const last = copy[copy.length - 1]
-          copy[copy.length - 1] = { ...last, sources }
-          return copy
-        })
+          const displayContent = sourcesParsed ? fullContent : fullContent.replace(/<!--SOURCES:.*/, '')
+          updateLast({ content: displayContent, sources: sources.length > 0 ? sources : undefined })
+        }
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Sorry, something went wrong. Please try again.'
       setMessages((m) => [...m, { role: 'assistant', content: msg }])
     } finally {
       setIsStreaming(false)
+      setStatusLabel(null)
     }
   }, [messages, isStreaming, isAuthenticated, showAuthPrompt])
 
@@ -504,7 +529,7 @@ export function ChatInterface() {
                       {msg.role === 'user' ? 'U' : 'א'}
                     </div>
                     <div>
-                      <div className={`rounded-xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${msg.role === 'user' ? 'bg-[var(--primary)] text-white rounded-tr-sm' : 'bg-white border border-[var(--border)] rounded-tl-sm'}`}>
+                      <div dir="auto" className={`rounded-xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${msg.role === 'user' ? 'bg-[var(--primary)] text-white rounded-tr-sm' : 'bg-white border border-[var(--border)] rounded-tl-sm'}`}>
                         {msg.content}
                       </div>
                       {msg.role === 'assistant' && msg.content && !isStreaming && (
@@ -528,7 +553,7 @@ export function ChatInterface() {
                                   <div className="text-xs font-semibold text-[var(--accent-text)] mb-1.5 flex items-center justify-between">
                                     <span className="flex items-center gap-1.5">
                                       <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-                                      {src.ref} · {src.type}
+                                      {src.ref}{(src.type || src.category) ? ` · ${src.type || src.category}` : ''}
                                     </span>
                                     <a
                                       href={`https://www.sefaria.org/${src.ref.replace(/ /g, '_')}`}
@@ -561,7 +586,7 @@ export function ChatInterface() {
                             <span key={j} className="w-1.5 h-1.5 rounded-full bg-[var(--primary-light)] animate-bounce" style={{ animationDelay: `${j * 0.15}s` }} />
                           ))}
                         </div>
-                        Searching sources & generating response...
+                        {statusLabel ?? 'Searching sources & generating response...'}
                       </div>
                     </div>
                   </div>

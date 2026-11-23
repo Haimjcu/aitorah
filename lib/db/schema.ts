@@ -239,6 +239,7 @@ export const changeProposals = pgTable('change_proposals', {
 
 export const evalCases = pgTable('eval_cases', {
   id: uuid('id').primaryKey().defaultRandom(),
+  key: text('key').notNull(),                 // stable id from evals/cases.jsonl, e.g. halacha_minhag-001
   domain: text('domain').notNull(),
   language: text('language').notNull(),
   question: text('question').notNull(),
@@ -251,6 +252,7 @@ export const evalCases = pgTable('eval_cases', {
   reviewedBy: text('reviewed_by'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 }, (table) => [
+  uniqueIndex('idx_eval_cases_key').on(table.key),
   index('idx_eval_cases_domain').on(table.domain, table.status),
 ])
 

@@ -69,12 +69,19 @@ async function submit() {
   console.log('batch', batch.id, requests.length, 'requests')
 }
 
+const refFailures: Record<string, number> = {}
 async function refResolves(ref: string): Promise<boolean> {
   try {
     const t = await getTexts(ref, { version: 'primary' })
-    return !!t && !(t as { error?: string }).error
-  } catch {
+    const err = (t as { error?: string }).error
+    if (err) refFailures['sefaria-error'] = (refFailures['sefaria-error'] ?? 0) + 1
+    return !!t && !err
+  } catch (e) {
+    const k = (e as Error).message.match(/error: (\d+)/)?.[1] ?? 'exception'
+    refFailures[k] = (refFailures[k] ?? 0) + 1
     return false
+  } finally {
+    await new Promise((r) => setTimeout(r, 150)) // be gentle with Sefaria
   }
 }
 
@@ -133,7 +140,7 @@ async function collect(id: string) {
   }
   fs.mkdirSync('evals', { recursive: true })
   fs.writeFileSync('evals/cases.jsonl', kept.map((k) => JSON.stringify(k)).join('\n') + '\n')
-  console.log('kept per domain', byDomain, `refs verified ${refsTotal - refsDropped}/${refsTotal}`)
+  console.log('kept per domain', byDomain, `refs verified ${refsTotal - refsDropped}/${refsTotal}`, 'failures', refFailures)
 
   // Review sheet for owner + rabbi (halacha & minhag)
   type K = { id: string; language: string; question: string; rubric: { key_points: string[]; community_notes: string; pitfalls: string[] }; must_cite: string[] }
