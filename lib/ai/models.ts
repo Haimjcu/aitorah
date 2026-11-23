@@ -16,7 +16,8 @@ interface ModelRoute {
 export const ANSWER_MODEL: ModelRoute = {
   model: 'claude-sonnet-5-5',
   maxTokens: 16000,
-  effort: 'medium',
+  // AGENT_EFFORT lets evals compare effort levels without a code change.
+  effort: (['low', 'medium', 'high', 'xhigh', 'max'].includes(process.env.AGENT_EFFORT ?? '') ? process.env.AGENT_EFFORT : 'medium') as Effort,
 }
 
 /** Intent classification: short JSON output, latency-sensitive. */

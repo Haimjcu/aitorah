@@ -6,10 +6,9 @@
 //   {type:'done', stopReason}           {type:'error', message}
 import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
-import { eq } from 'drizzle-orm'
 import { auth } from '@/lib/auth'
-import { getDb } from '@/lib/db'
-import { userProfiles, memories as memoriesTable } from '@/lib/db/schema'
+import { getProfile, getProject, listMemories } from '@/lib/user-data'
+import { listProjectFiles } from '@/lib/files'
 import { checkRateLimit } from '@/lib/ratelimit'
 import { resolveGeo } from '@/lib/hebcal/geo'
 import { runAgent, type AgentEvent } from '@/lib/agent/run'
@@ -17,7 +16,6 @@ import { logAnswer } from '@/lib/db/answer-logs'
 import { saveQaPair } from '@/lib/db/qa'
 import { agentEnabled } from '@/lib/flags'
 import type { RetrievedSource } from '@/lib/sefaria/types'
-import { and, isNull } from 'drizzle-orm'
 
 export const maxDuration = 300
 
@@ -26,18 +24,28 @@ const hasDb = !!process.env.DATABASE_URL
 
 type Msg = { role: 'user' | 'assistant'; content: string }
 
-async function loadUserContext(userId: string | undefined) {
-  if (!hasDb || !userId) return { profile: null, memories: [] as string[] }
+async function loadUserContext(userId: string | undefined, projectId: string | null) {
+  const empty = { profile: null, memories: [] as string[], project: null, projectMemories: [] as string[], projectFiles: [] as { id: string; filename: string; mime: string; description: string | null }[] }
+  if (!hasDb || !userId) return empty
   try {
-    const db = getDb()
-    const [profile] = await db.select().from(userProfiles).where(eq(userProfiles.userId, userId)).limit(1)
-    const mems = await db.select({ content: memoriesTable.content }).from(memoriesTable)
-      .where(and(eq(memoriesTable.userId, userId), isNull(memoriesTable.projectId), isNull(memoriesTable.deletedAt)))
-      .limit(30)
-    return { profile: profile ?? null, memories: mems.map((m) => m.content) }
+    const [profile, mems, project] = await Promise.all([
+      getProfile(userId),
+      listMemories(userId, null),
+      projectId ? getProject(userId, projectId) : Promise.resolve(null),
+    ])
+    const [projectMems, files] = project
+      ? await Promise.all([listMemories(userId, project.id), listProjectFiles(project.id)])
+      : [[], []]
+    return {
+      profile,
+      memories: mems.slice(0, 30).map((m) => m.content),
+      project,
+      projectMemories: projectMems.slice(0, 50).map((m) => m.content),
+      projectFiles: files.filter((f) => f.status === 'ready').slice(0, 40).map(({ id, filename, mime, description }) => ({ id, filename, mime, description })),
+    }
   } catch (e) {
     console.error('agent: user context load failed:', e)
-    return { profile: null, memories: [] as string[] }
+    return empty
   }
 }
 
@@ -59,8 +67,10 @@ export async function POST(req: NextRequest) {
   }
 
   const session = await auth().catch(() => null)
-  const [{ profile, memories }, geo] = await Promise.all([
-    loadUserContext(session?.user?.id),
+  const userId = session?.user?.id
+  const projectId = typeof body?.projectId === 'string' ? body.projectId : null
+  const [{ profile, memories, project, projectMemories, projectFiles }, geo] = await Promise.all([
+    loadUserContext(userId, projectId),
     resolveGeo(req).catch(() => null),
   ])
   const turn = messages.filter((m) => m.role === 'user').length
@@ -76,6 +86,12 @@ export async function POST(req: NextRequest) {
           geo,
           profile: profile ? { nusach: profile.nusach, level: profile.level, answerLanguage: profile.answerLanguage } : null,
           memories,
+          projectMemories,
+          projectFiles,
+          projectTitle: project?.title ?? null,
+          projectId: project?.id ?? null,
+          userId: hasDb ? userId : null,
+          plan: profile?.plan ?? null,
           onEvent: send,
         })
         logAnswer({
@@ -90,7 +106,8 @@ export async function POST(req: NextRequest) {
           turn,
         })
         // Only standalone first questions become public Q&A pages (follow-ups lack context).
-        if (hasDb && turn === 1 && r.stopReason === 'end_turn' && r.answer.length > 50 && !r.route.off_topic) {
+        // Project chats are private study; never publish them.
+        if (hasDb && turn === 1 && !project && r.stopReason === 'end_turn' && r.answer.length > 50 && !r.route.off_topic) {
           const sources = r.sources.map((s) => ({ ref: s.ref, heRef: s.heRef ?? '', categories: s.category ? [s.category] : [] })) as RetrievedSource[]
           saveQaPair(messages[0].content, r.answer, sources, r.route.language).catch(() => {})
         }

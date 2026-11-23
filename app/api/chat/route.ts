@@ -127,7 +127,8 @@ export async function POST(req: NextRequest) {
           turn,
         })
 
-        if (hasDb && complete && fullAnswer.length > 50) {
+        // Only first questions become Q&A pages: follow-ups lack their conversation context.
+        if (hasDb && complete && turn === 1 && fullAnswer.length > 50) {
           saveQaPair(lastUserMessage.content, fullAnswer, sources, intent.language).catch(() => {})
         }
       },

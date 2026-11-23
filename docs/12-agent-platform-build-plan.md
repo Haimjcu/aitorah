@@ -11,14 +11,35 @@ Builds on `docs/11-agent-redesign-research-plan.md` (research, chat-corpus findi
 | Milestone | Status | Notes |
 |---|---|---|
 | M0 Foundations | ✅ Done (committed) | SDK 1.12; migration `drizzle/0003_agent_platform.sql` (13 new tables + `study_sessions.project_id`, additive only); `lib/limits.ts` (all unlimited); `lib/flags.ts` kill switch; `answer_logs` written by legacy chat (tokens, cost, latency, TTFT, cache hits); `qa_pairs.language` filled; local dev via `scripts/dev-local.sh` + Docker Postgres; `npm run dev` uses webpack. Verified end-to-end with a French question. |
-| M1 Eval harness | ✅ Built; baseline running | 255 eval cases in `evals/cases.jsonl` (7 languages, ~25% past failures, rubrics by Opus 5.5, 882/888 cited refs verified on Sefaria). Halacha review sheet for owner + rabbi: `evals/halacha-review.md` (40 cases). Runner `npm run eval -- --target legacy|agent` with Opus judge + Sefaria ref check; reports in `evals/runs/`. |
-| M2 Agent harness | ✅ Built, tested locally | `lib/agent/` (router, tools, loop, citation check), `/api/agent` SSE endpoint (kill switch → legacy), ChatInterface streams status/sources, saves only first-turn Q&A. Uses server-side refusal fallbacks + prompt caching. |
-| M3 Skills | 🔄 In progress | 5 domain + 5 shared skill packs in `skills/` (all example refs verified on Sefaria), versioned in DB via `scripts/seed-skills.ts`. **Halacha skill needs owner + rabbi approval.** Admin skill editor still to build. |
-| M4–M8 | ⏳ | |
+| M1 Eval harness | ✅ Done | 255 cases (`evals/cases.jsonl`), Opus judge, Sefaria ref check, train/test split, runner shared with the learning loop. Halacha review sheet: `evals/halacha-review.md`. |
+| M2 Agent harness | ✅ Done | `lib/agent/`, `/api/agent` (SSE, kill switch), live status in chat, citation check, refusal fallbacks, prompt caching. |
+| M3 Skills | ✅ Built; tuning in progress | 10 skill packs, DB versioning, `/admin/skills` editor with rollback, `--skill` draft testing. Baseline: agent more accurate than legacy but cites fewer sources; tuning on the train split. **Halacha skill awaits owner + rabbi approval.** |
+| M4 Profile/projects/memory | ✅ Done | `/projects`, `/settings`, project memory and notes, agent `remember` + `update_profile` tools, nusach asked once and saved. |
+| M5 Files & images | ✅ Done | Private R2 uploads, Files API, Hebrew transcription (nikkud OK on rendered text), `read_project_file` lets the agent see images/PDFs. **Test with real scanned sefer pages before launch.** |
+| M6 Corrections & learning loop | ✅ Done | Correction form in chat, Haiku triage (option D, injection auto-reject), `/admin/corrections` with proposal diffs, `npm run learning-loop`. Tested end-to-end. |
+| M7 Languages | ✅ Core done | App UI in 8 languages (machine-translated, **needs native review**), RTL for he/yi, switcher saved to profile. Localized SEO pages deferred. |
+| M8 Launch | ⏳ | See runbook below. |
 
 **Found during M2:** legacy retrieval calls Sefaria with `version=primary`, which returns Hebrew/Aramaic only, so the legacy prompt never gets Sefaria's English translations. The agent tools request Hebrew + English + the user's language.
 
 **Found during M0 (production bug, legacy):** `/api/chat` saves *every* turn to `qa_pairs`, including follow-ups like "and without the a?", which then lack context on public SEO pages. The cache lookup only runs on first turns, but the save runs on all of them. Fix: save only first-turn answers (one-line change). Awaiting owner decision.
+
+## Launch runbook (M8)
+
+1. **Pre-launch gate:**
+   - Agent ≥ legacy on the eval **test split** in every domain.
+   - Owner + rabbi approve `evals/halacha-review.md` and `skills/domain-halacha_minhag.md`.
+   - Native review of `lib/i18n/messages/{he,fr,ru}.json` at least.
+   - Real scanned-page upload test.
+   - A week of owner testing locally (`AGENT_ENABLED=true scripts/dev-local.sh npm run dev`).
+2. **Before merging:** back up the production DB (Railway snapshot).
+3. **Merge** `harness` → `main` (Railway auto-deploys). Then in production:
+   - `npx drizzle-kit migrate` (migrations 0003–0005, all additive).
+   - `npx tsx scripts/seed-skills.ts`.
+   - Set env `AGENT_ENABLED=true` on the `aitorah` service.
+4. **Scheduling:** add a Railway cron service running `npm run learning-loop` nightly.
+5. **Watch `answer_logs`:** cost per day, latency, refusals, continue-request rate, unverified citations. If needed, set `AGENT_ENABLED=false` to fall back instantly.
+6. **Cleanup** (once stable): bulk-reject the ~522 pending contextless follow-up rows in `qa_pairs` (owner OK needed); remove legacy `/api/chat`, `lib/ai/prompts.ts`, `lib/rag/intent.ts` usage; replace the `/api/feedback` stub.
 
 ## 1. Principles
 

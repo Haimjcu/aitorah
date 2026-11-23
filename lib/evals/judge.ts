@@ -1,7 +1,7 @@
 // LLM judge (Opus 5.5) + deterministic checks for one eval case.
 import Anthropic from '@anthropic-ai/sdk'
 import { JUDGE_MODEL, estimateCost } from '@/lib/ai/models'
-import { getTexts } from '@/lib/sefaria/client'
+import { checkRef } from '@/lib/sefaria/verify'
 import type { CaseResult, EvalCase, JudgeScores, TargetAnswer } from './types'
 
 const LANG_NAMES: Record<string, string> = {
@@ -29,14 +29,6 @@ const scoreSchema = {
 
 const SYSTEM = `You are a strict, fair grader of answers from an AI Torah study assistant. You receive the user's question, a rubric written by a senior scholar, and the assistant's answer. Grade only what the answer says. Do not reward length. An answer that is fluent but contains a halachic error, an invented or misattributed source, or presents a minority view as mainstream must get accuracy ≤ 2 and overall ≤ 2.`
 
-async function refResolves(ref: string): Promise<boolean> {
-  try {
-    const t = await getTexts(ref, { version: 'primary' })
-    return !!t && !(t as { error?: string }).error
-  } catch {
-    return false
-  }
-}
 
 const normRef = (r: string) => r.toLowerCase().replace(/[^a-z0-9]/g, '')
 
@@ -76,8 +68,8 @@ ${a.answer || '(empty)'}`
     ? c.mustCite.filter((r) => cited.some((x) => x.includes(normRef(r)) || normRef(r).includes(x))).length / c.mustCite.length
     : null
   const refs = s.cited_refs.slice(0, 12)
-  const ok = await Promise.all(refs.map((ref) => refResolves(ref)))
-  const unresolved = refs.filter((_, i) => !ok[i])
+  const status = await Promise.all(refs.map((ref) => checkRef(ref)))
+  const unresolved = refs.filter((_, i) => status[i] === 'invalid')
 
   const passed =
     !truncated && s.language_correct && s.overall >= 4 && s.accuracy >= 4 && keyPointCoverage >= 0.6

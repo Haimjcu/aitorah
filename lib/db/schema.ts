@@ -101,7 +101,7 @@ export const userProfiles = pgTable('user_profiles', {
   userId: uuid('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
   uiLanguage: text('ui_language'),            // en | he | fr | es | ru | yi | pt | de
   answerLanguage: text('answer_language'),    // null = answer in the language the user writes in
-  nusach: text('nusach'),                     // ashkenaz | sefard | edot_hamizrach | chabad | other | null (not set)
+  nusach: text('nusach'),                     // ashkenazi | sephardi | chassidic_sefard | chabad | teimani | other | null (not set)
   level: text('level'),                       // beginner | intermediate | advanced | null
   plan: text('plan').default('free').notNull(), // key into lib/limits.ts
   trustedReviewer: boolean('trusted_reviewer').default(false).notNull(),
@@ -206,6 +206,12 @@ export const corrections = pgTable('corrections', {
   qaPairId: uuid('qa_pair_id').references(() => qaPairs.id, { onDelete: 'set null' }),
   userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
   text: text('text').notNull(),
+  question: text('question'),                 // snapshot of the question answered
+  answer: text('answer'),                     // snapshot of the answer being corrected
+  domain: text('domain'),                     // specialist domain (from the router / classifier)
+  skillVersions: jsonb('skill_versions'),     // skill versions that produced the answer, if known
+  summary: text('summary'),                   // classifier's one-line summary of the requested change
+  targetSkill: text('target_skill'),          // skill slug the change belongs in
   category: text('category'),                 // wrong_fact | wrong_source | missing_view | translation | formatting | tone | other
   riskTier: text('risk_tier'),                // low | high | halachic (set by classifier)
   status: text('status').default('new').notNull(), // new | triaged | reviewer_approved | proposed | applied | rejected

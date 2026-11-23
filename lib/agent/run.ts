@@ -4,11 +4,11 @@ import Anthropic from '@anthropic-ai/sdk'
 import { ANSWER_MODEL, INTENT_MODEL } from '@/lib/ai/models'
 import type { ModelCall } from '@/lib/db/answer-logs'
 import type { GeoInfo } from '@/lib/hebcal/types'
-import { getTexts } from '@/lib/sefaria/client'
+import { checkRef } from '@/lib/sefaria/verify'
 import { BASE_PROMPT, buildUserContextBlock } from './base-prompt'
 import { routeMessage, type Route } from './router'
 import { loadSkills, skillSlugs, type LoadedSkill } from './skills'
-import { TOOL_DEFINITIONS, runTool, type ToolContext } from './tools'
+import { toolDefinitions, runTool, type ToolContext } from './tools'
 
 const MAX_TOOL_ROUNDS = 8
 const FALLBACK_BETA = 'server-side-fallback-2026-07-01'
@@ -19,7 +19,9 @@ export type AgentEvent =
   | { type: 'text'; delta: string }
   | { type: 'sources'; sources: AgentSource[] }
   | { type: 'citations'; cited: string[]; unverified: string[] }
-  | { type: 'done'; stopReason: string | null }
+  | { type: 'memory'; id: string; content: string; scope: 'user' | 'project' }
+  | { type: 'profile'; changes: Record<string, string | null> }
+  | { type: 'done'; stopReason: string | null; domains: string[]; skillVersions: Record<string, number | 'file'> }
 
 export interface AgentSource {
   ref: string
@@ -33,7 +35,14 @@ export interface AgentInput {
   geo?: GeoInfo | null
   profile?: { nusach?: string | null; level?: string | null; answerLanguage?: string | null } | null
   memories?: string[]
+  projectMemories?: string[]
   projectTitle?: string | null
+  projectId?: string | null
+  /** Ready files in the project: shown to the model so it can call read_project_file. */
+  projectFiles?: { id: string; filename: string; mime: string; description: string | null }[]
+  /** Signed-in user id: enables memory/profile tools. */
+  userId?: string | null
+  plan?: string | null
   /** Evals: use these skill contents instead of the active versions. */
   skillOverrides?: Record<string, LoadedSkill>
   /** Evals/M2 baseline: skip domain skills entirely (base prompt only). */
@@ -61,6 +70,9 @@ const TOOL_LABELS: Record<string, (i: Record<string, unknown>) => string> = {
   get_topic: (i) => `Looking up the topic “${i.slug}”`,
   find_ref: (i) => `Checking the reference “${i.name}”`,
   calendar: () => 'Checking the Jewish calendar',
+  remember: () => 'Saving to memory',
+  update_profile: () => 'Saving your preferences',
+  read_project_file: () => 'Reading your uploaded file',
 }
 
 export const sefariaUrl = (ref: string) => `https://www.sefaria.org/${encodeURIComponent(ref.replace(/ /g, '_'))}`
@@ -93,13 +105,21 @@ export async function runAgent(client: Anthropic, input: AgentInput): Promise<Ag
       nusach: input.profile?.nusach,
       level: input.profile?.level,
       memories: input.memories,
+      projectMemories: input.projectMemories,
       projectTitle: input.projectTitle,
+      projectFiles: input.projectFiles,
+      signedIn: !!input.userId,
       communityDependent: route.community_dependent,
     }),
   })
 
   // 4. Tool loop
-  const ctx: ToolContext = { language, geo: input.geo ?? null, retrievedRefs: new Map() }
+  const ctx: ToolContext = {
+    language, geo: input.geo ?? null, retrievedRefs: new Map(),
+    userId: input.userId ?? undefined, plan: input.plan, projectId: input.projectId,
+    notify: (e) => emit(e),
+  }
+  const tools = toolDefinitions(!!input.userId, !!input.projectFiles?.length) as Anthropic.Beta.BetaTool[]
   const convo: Anthropic.Beta.BetaMessageParam[] = input.messages.map((m) => ({ role: m.role, content: m.content }))
   const toolCalls: AgentResult['toolCalls'] = []
   let answer = ''
@@ -113,7 +133,7 @@ export async function runAgent(client: Anthropic, input: AgentInput): Promise<Ag
       max_tokens: ANSWER_MODEL.maxTokens,
       output_config: { effort: ANSWER_MODEL.effort },
       system,
-      tools: TOOL_DEFINITIONS as Anthropic.Beta.BetaTool[],
+      tools,
       ...(lastRound ? { tool_choice: { type: 'none' as const } } : {}),
       messages: convo,
       cache_control: { type: 'ephemeral' },
@@ -164,7 +184,7 @@ export async function runAgent(client: Anthropic, input: AgentInput): Promise<Ag
   if (!used.length) used = retrieved.slice(0, 5)
   const sources = used.slice(0, 12).map(([ref, m]) => ({ ref, heRef: m.heRef, category: m.category, url: sefariaUrl(ref) }))
   emit({ type: 'sources', sources })
-  emit({ type: 'done', stopReason })
+  emit({ type: 'done', stopReason, domains: route.domains, skillVersions })
 
   return {
     answer, route, sources, stopReason, calls, toolCalls,
@@ -191,12 +211,8 @@ export function extractCitations(answer: string): string[] {
 async function resolves(ref: string, retrievedNorm: string[]): Promise<boolean> {
   const n = norm(ref)
   if (n && retrievedNorm.some((r) => r.startsWith(n) || n.startsWith(r))) return true
-  try {
-    const t = await getTexts(ref, { version: 'primary' })
-    return !(t as unknown as { error?: string }).error
-  } catch {
-    return false
-  }
+  // 'unknown' (network/rate limit) is not evidence of an invented source.
+  return (await checkRef(ref)) !== 'invalid'
 }
 
 /** Translate citations written with localized book names ("Exode 12:2", "Бытие 1:1") to Sefaria English refs. */

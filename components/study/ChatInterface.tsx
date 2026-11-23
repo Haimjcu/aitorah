@@ -7,6 +7,8 @@ import Link from 'next/link'
 import { CopyButton } from '@/components/ui/CopyButton'
 import { LogoMark } from '@/components/ui/LogoMark'
 import { AuthModal } from './AuthModal'
+import { CorrectionForm } from './CorrectionForm'
+import { useI18n } from '@/components/providers/I18nProvider'
 
 type Source = { ref: string; type?: string; category?: string; similarity?: number; hebrew?: string; english?: string; url?: string }
 
@@ -14,6 +16,8 @@ type Message = {
   role: 'user' | 'assistant'
   content: string
   sources?: Source[]
+  /** From the agent: which topic and skill versions produced this answer (sent with corrections). */
+  meta?: { domains?: string[]; skillVersions?: Record<string, unknown> }
 }
 
 type SessionSummary = {
@@ -51,6 +55,8 @@ export function ChatInterface() {
   const router = useRouter()
   const { data: authSession, status: authStatus } = useSession()
   const isAuthenticated = authStatus === 'authenticated'
+  const { t } = useI18n()
+  const hints = [t('chat.hint1'), t('chat.hint2'), t('chat.hint3'), t('chat.hint4')]
 
   const [messages, setMessages] = useState<Message[]>([GREETING])
   const [statusLabel, setStatusLabel] = useState<string | null>(null)
@@ -67,8 +73,14 @@ export function ChatInterface() {
   const [authModalTab, setAuthModalTab] = useState<'signin' | 'signup'>('signin')
   const [showAuthPrompt, setShowAuthPrompt] = useState(false)
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
+  // Study project this chat belongs to (?project=<id>), and agent notices (memory saved, profile updated)
+  const [project, setProject] = useState<{ id: string; title: string } | null>(null)
+  const projectRef = useRef<{ id: string; title: string } | null>(null)
+  const [notice, setNotice] = useState<{ text: string; memoryId?: string } | null>(null)
+  const [correcting, setCorrecting] = useState<number | null>(null)
 
   currentSessionIdRef.current = currentSessionId
+  projectRef.current = project
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
@@ -173,7 +185,7 @@ export function ChatInterface() {
         const res = await fetch('/api/sessions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: generateTitle(text), messages: [...messages, userMsg] }),
+          body: JSON.stringify({ title: generateTitle(text), messages: [...messages, userMsg], projectId: projectRef.current?.id }),
         })
         if (res.ok) {
           const created = await res.json()
@@ -186,7 +198,10 @@ export function ChatInterface() {
       }
     }
 
-    const payload = JSON.stringify({ messages: [...messages, userMsg].map(({ role, content }) => ({ role, content })) })
+    const payload = JSON.stringify({
+      messages: [...messages, userMsg].map(({ role, content }) => ({ role, content })),
+      projectId: projectRef.current?.id,
+    })
     const updateLast = (patch: Partial<Message>) =>
       setMessages((m) => {
         const copy = [...m]
@@ -233,6 +248,12 @@ export function ChatInterface() {
             } else if (ev.type === 'sources') {
               sources = (ev.sources as Source[]) ?? []
               if (sources.length) updateLast({ sources })
+            } else if (ev.type === 'done') {
+              updateLast({ meta: { domains: ev.domains as string[], skillVersions: ev.skillVersions as Record<string, unknown> } })
+            } else if (ev.type === 'memory') {
+              setNotice({ text: t(ev.scope === 'project' ? 'chat.savedToProjectMemory' : 'chat.savedToMemory', { content: String(ev.content) }), memoryId: String(ev.id) })
+            } else if (ev.type === 'profile') {
+              setNotice({ text: t('chat.preferencesUpdated') })
             } else if (ev.type === 'error') {
               throw new Error(String(ev.message))
             }
@@ -266,7 +287,34 @@ export function ChatInterface() {
       setIsStreaming(false)
       setStatusLabel(null)
     }
-  }, [messages, isStreaming, isAuthenticated, showAuthPrompt])
+  }, [messages, isStreaming, isAuthenticated, showAuthPrompt, t])
+
+  // ?project=<id> starts a chat inside a study project; ?session=<id> opens a saved chat
+  useEffect(() => {
+    const pid = searchParams.get('project')
+    if (!pid || !isAuthenticated) { if (!pid) setProject(null); return }
+    fetch(`/api/projects/${pid}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d?.project) setProject({ id: d.project.id, title: d.project.title }) })
+      .catch(() => {})
+  }, [searchParams, isAuthenticated])
+
+  const sessionParamLoaded = useRef(false)
+  useEffect(() => {
+    const sid = searchParams.get('session')
+    if (sid && isAuthenticated && !sessionParamLoaded.current) {
+      sessionParamLoaded.current = true
+      fetch(`/api/sessions/${sid}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => { if (d) { setCurrentSessionId(sid); setMessages(d.messages) } })
+        .catch(() => {})
+    }
+  }, [searchParams, isAuthenticated])
+
+  const undoMemory = useCallback(async (id: string) => {
+    await fetch(`/api/memories?id=${id}`, { method: 'DELETE' }).catch(() => {})
+    setNotice({ text: t('chat.removedFromMemory') })
+  }, [t])
 
   useEffect(() => {
     const q = searchParams.get('q')
@@ -345,7 +393,7 @@ export function ChatInterface() {
   const sessionSidebarContent = (
     <>
       <div className="p-3">
-        <h3 className="text-xs font-semibold text-[var(--text-sec)] uppercase tracking-wider mb-3">Sessions</h3>
+        <h3 className="text-xs font-semibold text-[var(--text-sec)] uppercase tracking-wider mb-3">{t('chat.sessions')}</h3>
         <button
           onClick={handleNewSession}
           disabled={isStreaming}
@@ -381,7 +429,7 @@ export function ChatInterface() {
           </div>
         ))}
         {sessionList.length === 0 && (
-          <p className="text-xs text-[var(--text-sec)] text-center py-4 px-2">No saved sessions yet. Start a conversation to create one.</p>
+          <p className="text-xs text-[var(--text-sec)] text-center py-4 px-2">{t('chat.noSessions')}</p>
         )}
       </div>
 
@@ -478,7 +526,7 @@ export function ChatInterface() {
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
             </button>
-            <span className="text-sm font-semibold text-[var(--primary)] flex-1 text-center font-serif">Study Partner</span>
+            <span className="text-sm font-semibold text-[var(--primary)] flex-1 text-center font-serif">{t('chat.title')}</span>
             <div className="w-9" />
           </div>
 
@@ -488,7 +536,7 @@ export function ChatInterface() {
               <div className="w-full max-w-[640px] text-center">
                 <div className="w-12 h-12 rounded-full bg-[var(--accent-light)] text-[var(--accent-text)] flex items-center justify-center font-serif text-lg font-semibold mx-auto mb-4">א</div>
                 <h2 className="text-2xl font-serif font-bold text-[var(--primary)] mb-2">AI Torah Study Partner</h2>
-                <p className="text-sm text-[var(--text-sec)] mb-8">Ask me anything about Torah, Talmud, Halacha, or Jewish philosophy — I&apos;ll find relevant sources and walk through them with you.</p>
+                <p className="text-sm text-[var(--text-sec)] mb-8">{t('chat.intro')}</p>
 
                 <div className="flex items-end gap-2.5 bg-white border border-[var(--border)] rounded-xl px-3 py-2.5 focus-within:border-[var(--primary-light)] transition-colors">
                   <textarea
@@ -500,7 +548,7 @@ export function ChatInterface() {
                       e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'
                     }}
                     onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input) } }}
-                    placeholder="Ask about any Torah text or topic..."
+                    placeholder={t('chat.placeholder')}
                     className="flex-1 border-none outline-none resize-none font-sans text-sm leading-snug max-h-[120px] bg-transparent"
                   />
                   <button
@@ -512,7 +560,7 @@ export function ChatInterface() {
                   </button>
                 </div>
                 <div className="flex gap-2 mt-3 flex-wrap justify-center">
-                  {HINTS.map((hint) => (
+                  {hints.map((hint) => (
                     <button key={hint} onClick={() => sendMessage(hint)} className="bg-white border border-[var(--border)] rounded-full px-3 py-1 text-xs text-[var(--text-sec)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition-all">
                       {hint}
                     </button>
@@ -522,6 +570,25 @@ export function ChatInterface() {
             </div>
           ) : (
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+              {(project || notice) && (
+                <div className="px-6 pt-3 flex flex-col gap-2">
+                  {project && (
+                    <div className="text-xs text-[var(--text-sec)] flex items-center gap-2">
+                      <span className="px-2 py-0.5 rounded bg-[#eef2ff] text-[var(--primary)] font-medium">{t('chat.project')}</span>
+                      <Link href={`/projects/${project.id}`} className="hover:underline">{project.title}</Link>
+                    </div>
+                  )}
+                  {notice && (
+                    <div className="text-xs bg-[var(--surface-alt)] border border-[var(--border)] rounded-md px-3 py-2 flex items-center gap-3">
+                      <span className="flex-1" dir="auto">{notice.text}</span>
+                      {notice.memoryId && (
+                        <button onClick={() => undoMemory(notice.memoryId!)} className="text-[var(--primary)] hover:underline">{t('chat.undo')}</button>
+                      )}
+                      <button onClick={() => setNotice(null)} aria-label={t('chat.dismiss')} className="text-[var(--text-sec)]">✕</button>
+                    </div>
+                  )}
+                </div>
+              )}
               <div ref={scrollRef} className="flex-1 overflow-y-auto flex flex-col gap-5 p-6 pb-2">
                 {messages.map((msg, i) => (
                   <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'self-end flex-row-reverse max-w-[80%]' : 'max-w-[85%]'}`}>
@@ -529,13 +596,26 @@ export function ChatInterface() {
                       {msg.role === 'user' ? 'U' : 'א'}
                     </div>
                     <div>
-                      <div dir="auto" className={`rounded-xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${msg.role === 'user' ? 'bg-[var(--primary)] text-white rounded-tr-sm' : 'bg-white border border-[var(--border)] rounded-tl-sm'}`}>
-                        {msg.content}
+                      <div dir="auto" className={`rounded-xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${msg.role === 'user' ? 'bg-[var(--primary)] text-white rounded-se-sm' : 'bg-white border border-[var(--border)] rounded-ss-sm'}`}>
+                        {msg.content === GREETING.content ? t('chat.greeting') : msg.content}
                       </div>
                       {msg.role === 'assistant' && msg.content && !isStreaming && (
-                        <div className="mt-1.5">
+                        <div className="mt-1.5 flex items-center gap-3">
                           <CopyButton text={msg.content} />
+                          {i > 0 && (
+                            <button onClick={() => setCorrecting(correcting === i ? null : i)} className="text-xs text-[var(--text-sec)] hover:text-[var(--text)]">
+                              {t('chat.suggestCorrection')}
+                            </button>
+                          )}
                         </div>
+                      )}
+                      {correcting === i && (
+                        <CorrectionForm
+                          question={[...messages.slice(0, i)].reverse().find((m) => m.role === 'user')?.content ?? ''}
+                          answer={msg.content}
+                          meta={msg.meta}
+                          onDone={() => setCorrecting(null)}
+                        />
                       )}
                       {msg.sources && msg.sources.length > 0 && (
                         <div className="mt-3">
@@ -544,7 +624,7 @@ export function ChatInterface() {
                             className="flex items-center gap-1.5 text-xs text-[var(--text-sec)] hover:text-[var(--text)] transition-colors"
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-                            {msg.sources.length} sources retrieved
+                            {t('chat.sourcesRetrieved', { count: msg.sources.length })}
                           </button>
                           {openSources.includes(i) && (
                             <div className="mt-2 flex flex-col gap-2">
@@ -561,7 +641,7 @@ export function ChatInterface() {
                                       rel="noopener noreferrer"
                                       className="text-[var(--primary)] hover:underline"
                                     >
-                                      View on Sefaria
+                                      {t('chat.viewOnSefaria')}
                                     </a>
                                   </div>
                                   {src.hebrew && <div className="hebrew text-sm mb-1.5 leading-loose">{src.hebrew}</div>}
@@ -579,14 +659,14 @@ export function ChatInterface() {
                 {isStreaming && messages[messages.length - 1]?.content === '' && (
                   <div className="flex gap-3 max-w-[85%]">
                     <div className="w-8 h-8 rounded-full bg-[var(--accent-light)] text-[var(--accent-text)] flex items-center justify-center font-serif text-sm font-semibold flex-shrink-0">א</div>
-                    <div className="bg-white border border-[var(--border)] rounded-xl rounded-tl-sm px-4 py-3">
+                    <div className="bg-white border border-[var(--border)] rounded-xl rounded-ss-sm px-4 py-3">
                       <div className="flex items-center gap-2 text-xs text-[var(--text-sec)]">
                         <div className="flex gap-1">
                           {[0, 1, 2].map((j) => (
                             <span key={j} className="w-1.5 h-1.5 rounded-full bg-[var(--primary-light)] animate-bounce" style={{ animationDelay: `${j * 0.15}s` }} />
                           ))}
                         </div>
-                        {statusLabel ?? 'Searching sources & generating response...'}
+                        {statusLabel ?? t('chat.searching')}
                       </div>
                     </div>
                   </div>
@@ -596,8 +676,8 @@ export function ChatInterface() {
                 {showAuthPrompt && !isAuthenticated && !isStreaming && (
                   <div className="mx-auto max-w-md bg-[var(--surface-alt)] border border-[var(--border)] rounded-xl p-5 text-center">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-3"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                    <p className="text-sm font-medium mb-1">Sign in to keep studying</p>
-                    <p className="text-xs text-[var(--text-sec)] mb-4">Create a free account to save this conversation and continue asking questions.</p>
+                    <p className="text-sm font-medium mb-1">{t('chat.signInToKeep')}</p>
+                    <p className="text-xs text-[var(--text-sec)] mb-4">{t('chat.signInToKeepBody')}</p>
                     <div className="flex gap-2 justify-center">
                       <button onClick={() => openAuth('signup')} className="px-5 py-2 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:bg-[var(--primary-light)] transition-all">
                         Create Account
@@ -615,8 +695,8 @@ export function ChatInterface() {
                 {showAuthPrompt && !isAuthenticated ? (
                   <div className="flex items-center justify-center gap-2 bg-[var(--surface-alt)] border border-[var(--border)] rounded-xl px-4 py-3 text-sm text-[var(--text-sec)]">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                    <span>Sign in to continue the conversation</span>
-                    <button onClick={() => openAuth('signin')} className="text-[var(--primary)] font-medium hover:underline ml-1">Sign in</button>
+                    <span>{t('chat.signInToContinue')}</span>
+                    <button onClick={() => openAuth('signin')} className="text-[var(--primary)] font-medium hover:underline ms-1">{t('chat.signIn')}</button>
                   </div>
                 ) : (
                   <>
@@ -630,7 +710,7 @@ export function ChatInterface() {
                           e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'
                         }}
                         onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input) } }}
-                        placeholder="Ask about any Torah text or topic..."
+                        placeholder={t('chat.placeholder')}
                         className="flex-1 border-none outline-none resize-none font-sans text-sm leading-snug max-h-[120px] bg-transparent"
                       />
                       <button
@@ -642,7 +722,7 @@ export function ChatInterface() {
                       </button>
                     </div>
                     <div className="flex gap-2 mt-2.5 flex-wrap">
-                      {HINTS.map((hint) => (
+                      {hints.map((hint) => (
                         <button key={hint} onClick={() => sendMessage(hint)} className="bg-white border border-[var(--border)] rounded-full px-3 py-1 text-xs text-[var(--text-sec)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition-all">
                           {hint}
                         </button>

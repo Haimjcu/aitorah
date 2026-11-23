@@ -2,14 +2,16 @@
 
 import Link from 'next/link'
 import { LogoMark } from '@/components/ui/LogoMark'
+import { useI18n } from '@/components/providers/I18nProvider'
 
 const menuItems = [
-  { label: 'Study', href: '/study' },
-  { label: 'Search', href: '/search' },
-  { label: 'Q&A', href: '/answers' },
-  { label: 'Topics', href: '/topics' },
-  { label: 'Community', href: '/community' },
-  { label: 'Contact', href: '/contact' },
+  { label: 'nav.study', href: '/study' },
+  { label: 'nav.projects', href: '/projects' },
+  { label: 'nav.search', href: '/search' },
+  { label: 'nav.qa', href: '/answers' },
+  { label: 'nav.topics', href: '/topics' },
+  { label: 'nav.community', href: '/community' },
+  { label: 'nav.contact', href: '/contact' },
 ]
 
 export function MobileMenuButton({ onClick }: { onClick: () => void }) {
@@ -25,6 +27,7 @@ export function MobileMenuButton({ onClick }: { onClick: () => void }) {
 }
 
 export function MobileMenuDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { t } = useI18n()
   if (!open) return null
 
   return (
@@ -52,7 +55,7 @@ export function MobileMenuDrawer({ open, onClose }: { open: boolean; onClose: ()
               onClick={onClose}
               className="block px-4 py-3 rounded-lg text-sm font-medium text-[var(--text-sec)] hover:bg-[var(--surface-alt)] hover:text-[var(--text)] transition-all"
             >
-              {item.label}
+              {t(item.label)}
             </Link>
           ))}
         </nav>

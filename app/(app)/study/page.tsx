@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Suspense } from 'react'
 import { ChatInterface } from '@/components/study/ChatInterface'
 import { AppPageHeader } from '@/components/layout/AppPageHeader'
+import { getServerI18n } from '@/lib/i18n/server'
 
 export const metadata: Metadata = {
   title: 'Study Partner',
@@ -9,11 +10,12 @@ export const metadata: Metadata = {
   alternates: { canonical: '/study' },
 }
 
-export default function StudyPage() {
+export default async function StudyPage() {
+  const { t } = await getServerI18n()
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="hidden md:block">
-        <AppPageHeader title="Study Partner" />
+        <AppPageHeader title={t('chat.title')} />
       </div>
       <div className="flex-1 overflow-hidden">
         <Suspense>

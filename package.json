@@ -10,7 +10,8 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "next lint",
-    "eval": "tsx scripts/eval.ts"
+    "eval": "tsx scripts/eval.ts",
+    "learning-loop": "tsx scripts/learning-loop.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.12.0",
