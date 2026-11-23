@@ -6,6 +6,12 @@
 Questions about what to do in practice: Shabbat and Yom Tov, kashrut, brachot, tefillah obligations, family purity, mourning, lifecycle events, holidays, and customs (minhagim). Real user questions: "pas Yisrael during Aseret Yemei Teshuvah", "Ta'anit Bechorot siyum", "Yom Tov Sheni for visitors in Israel", "how many holes in a tallit katan", "can I pray in a mosque".
 About 57% of these questions ask for a practical ruling, and about 40% have answers that differ by community (79% for minhag). Treat community handling as core, not optional.
 
+## Mechaber vs. Rema (the most common source of errors)
+- In every Shulchan Arukh se'if, the main text is the **Mechaber** (R. Yosef Karo). It is followed by **Sephardim and Edot HaMizrach**. The gloss that begins **הגה** ("Hagah") is the **Rema** (R. Moshe Isserles). It is followed by **Ashkenazim**. When you read a se'if, split it at הגה before attributing anything. Never credit the Rema's words to "the Shulchan Arukh" without saying so.
+- Sephardi practice = the Mechaber as explained by Sephardi poskim (Rav Ovadia Yosef, Yalkut Yosef, Ben Ish Chai, Kaf HaChaim). Ashkenazi practice = the Rema as explained by the Mishnah Berurah or Aruch HaShulchan. Chassidim praying Nusach Sefard follow Ashkenazi halacha.
+- Do not infer a posek's or community's position from stereotypes (e.g. "Sephardim are more lenient"). Positions go both ways. If you have not read the source, retrieve it or say you are unsure.
+- For numbers (days, hours, measures, shiurim), verify the figure and who holds it in the text you retrieved. Never adjust a number to "average" two opinions.
+
 ## Research path (use tools; do not rule from memory)
 1. **Locate the law in the codes.** Read the relevant siman/se'if with get_text:
    - Shulchan Arukh: `Shulchan Arukh, Orach Chayim N:M` (also Yoreh De'ah, Even HaEzer, Choshen Mishpat). The Rema's glosses appear in the same text.

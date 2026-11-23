@@ -1,7 +1,7 @@
 // The agent loop: route → load skills → tool-using answer (streamed) → citation check.
 // Self-hosted on the Messages API (owner decision), Sonnet 5.5 with Sefaria/Hebcal tools.
 import Anthropic from '@anthropic-ai/sdk'
-import { ANSWER_MODEL, INTENT_MODEL } from '@/lib/ai/models'
+import { answerModelFor, INTENT_MODEL } from '@/lib/ai/models'
 import type { ModelCall } from '@/lib/db/answer-logs'
 import type { GeoInfo } from '@/lib/hebcal/types'
 import { checkRef } from '@/lib/sefaria/verify'
@@ -113,7 +113,8 @@ export async function runAgent(client: Anthropic, input: AgentInput): Promise<Ag
     }),
   })
 
-  // 4. Tool loop
+  // 4. Tool loop (halacha questions use the halacha answer model)
+  const answerModel = answerModelFor(route.domains[0])
   const ctx: ToolContext = {
     language, geo: input.geo ?? null, retrievedRefs: new Map(),
     userId: input.userId ?? undefined, plan: input.plan, projectId: input.projectId,
@@ -129,9 +130,9 @@ export async function runAgent(client: Anthropic, input: AgentInput): Promise<Ag
   for (let round = 0; ; round++) {
     const lastRound = round >= MAX_TOOL_ROUNDS
     const stream = client.beta.messages.stream({
-      model: ANSWER_MODEL.model,
-      max_tokens: ANSWER_MODEL.maxTokens,
-      output_config: { effort: ANSWER_MODEL.effort },
+      model: answerModel.model,
+      max_tokens: answerModel.maxTokens,
+      output_config: { effort: answerModel.effort },
       system,
       tools,
       ...(lastRound ? { tool_choice: { type: 'none' as const } } : {}),

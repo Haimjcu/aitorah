@@ -14,11 +14,30 @@ interface ModelRoute {
 
 /** Main study-partner answers (chat, admin regenerate, seed script). */
 export const ANSWER_MODEL: ModelRoute = {
-  model: 'claude-sonnet-5-5',
+  // AGENT_MODEL lets evals compare answer models (e.g. claude-opus-5-5 for halacha) without a code change.
+  model: ['claude-sonnet-5-5', 'claude-opus-5-5'].includes(process.env.AGENT_MODEL ?? '') ? process.env.AGENT_MODEL! : 'claude-sonnet-5-5',
   maxTokens: 16000,
   // AGENT_EFFORT lets evals compare effort levels without a code change.
   effort: (['low', 'medium', 'high', 'xhigh', 'max'].includes(process.env.AGENT_EFFORT ?? '') ? process.env.AGENT_EFFORT : 'medium') as Effort,
 }
+
+/**
+ * Halacha & minhag answers: Opus 5.5. In evals (2026-11-23) it was the only setup with zero serious halachic
+ * errors under both an Opus and a Sonnet judge, at ~5x Sonnet's cost per answer. AGENT_HALACHA_MODEL overrides.
+ */
+export const HALACHA_ANSWER_MODEL: ModelRoute = {
+  model: ['claude-sonnet-5-5', 'claude-opus-5-5'].includes(process.env.AGENT_HALACHA_MODEL ?? '') ? process.env.AGENT_HALACHA_MODEL! : 'claude-opus-5-5',
+  maxTokens: 16000,
+  effort: 'medium',
+}
+
+/** Answer model for a routed question: halacha/minhag as primary domain → HALACHA_ANSWER_MODEL. */
+export function answerModelFor(primaryDomain: string | undefined): ModelRoute {
+  return primaryDomain === 'halacha_minhag' && !process.env.AGENT_MODEL ? HALACHA_ANSWER_MODEL : ANSWER_MODEL
+}
+
+/** Eval judges: grading with two different models and averaging reduces self-preference bias. */
+export const JUDGE_PANEL = ['claude-opus-5-5', 'claude-sonnet-5-5'] as const
 
 /** Intent classification: short JSON output, latency-sensitive. */
 export const INTENT_MODEL: ModelRoute = {

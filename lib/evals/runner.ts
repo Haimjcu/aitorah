@@ -179,7 +179,7 @@ function table(title: string, rows: Record<string, Summary['all']>) {
 }
 
 export function renderReport(title: string, results: CaseResult[], summary: Summary, cost: { answers: number; judge: number }, note = '') {
-  let md = `# ${title}\n\n${note}Cases: ${results.length} · Cost: answers $${cost.answers.toFixed(2)} + judge $${cost.judge.toFixed(2)}\n\nPass = not truncated, correct language, overall ≥ 4, accuracy ≥ 4, key-point coverage ≥ 60%.\n`
+  let md = `# ${title}\n\n${note}Cases: ${results.length} · Cost: answers $${cost.answers.toFixed(2)} + judge $${cost.judge.toFixed(2)}\n\nScores are averaged over a two-model judge panel (Opus 5.5 + Sonnet 5.5). Pass = not truncated, correct language, overall ≥ 3.75, accuracy ≥ 3.75, key-point coverage ≥ 60% (a point counts only if both judges agree), and no judge finds a serious error (accuracy ≤ 2).\n`
   md += table('Overall', { all: summary.all }) + table('By domain', summary.by_domain) + table('By language', summary.by_language)
   const worst = results.filter((r) => !r.error && !r.passed).sort((a, b) => a.scores.overall - b.scores.overall).slice(0, 10)
   md += `\n### Lowest-scoring cases\n\n` + worst.map((r) => `- **${r.key}** (${r.language}) overall ${r.scores.overall}, accuracy ${r.scores.accuracy}: ${r.scores.rationale}`).join('\n') + '\n'

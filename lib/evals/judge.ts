@@ -1,6 +1,6 @@
 // LLM judge (Opus 5.5) + deterministic checks for one eval case.
 import Anthropic from '@anthropic-ai/sdk'
-import { JUDGE_MODEL, estimateCost } from '@/lib/ai/models'
+import { JUDGE_MODEL, JUDGE_PANEL, estimateCost } from '@/lib/ai/models'
 import { checkRef } from '@/lib/sefaria/verify'
 import type { CaseResult, EvalCase, JudgeScores, TargetAnswer } from './types'
 
@@ -50,16 +50,36 @@ Practical ruling requested: ${c.rubric.needs_practical_ruling ? 'yes' : 'no'}
 ASSISTANT ANSWER${truncated ? ' (NOTE: answer was cut off before finishing)' : ''}:
 ${a.answer || '(empty)'}`
 
-  const res = await client.messages.create({
-    model: JUDGE_MODEL.model,
-    max_tokens: JUDGE_MODEL.maxTokens,
-    output_config: { effort: 'medium', format: { type: 'json_schema', schema: scoreSchema } },
-    system: SYSTEM,
-    messages: [{ role: 'user', content: prompt }],
-  })
-  const judgeCost = estimateCost(res.model, res.usage) ?? 0
-  const text = res.content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map((b) => b.text).join('')
-  const s = JSON.parse(text) as JudgeScores
+  // Grade with a panel of different models and average: a single judge favors answers from its own model.
+  // JUDGE_OVERRIDE=<model> grades with that one model only.
+  const models = process.env.JUDGE_OVERRIDE ? [process.env.JUDGE_OVERRIDE] : [...JUDGE_PANEL]
+  let judgeCost = 0
+  const panel = await Promise.all(models.map(async (model) => {
+    const res = await client.messages.create({
+      model,
+      max_tokens: JUDGE_MODEL.maxTokens,
+      output_config: { effort: 'medium', format: { type: 'json_schema', schema: scoreSchema } },
+      system: SYSTEM,
+      messages: [{ role: 'user', content: prompt }],
+    })
+    judgeCost += estimateCost(res.model, res.usage) ?? 0
+    return JSON.parse(res.content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map((b) => b.text).join('')) as JudgeScores
+  }))
+  const mean = (f: (j: JudgeScores) => number) => panel.reduce((t, j) => t + f(j), 0) / panel.length
+  const comm = panel.map((j) => j.community_handling).filter((v): v is number => v !== null)
+  const s: JudgeScores = {
+    language_correct: panel.every((j) => j.language_correct),
+    // a key point counts as covered only if every judge says so
+    key_points_covered: panel[0].key_points_covered.map((_, i) => panel.every((j) => j.key_points_covered[i] === true)),
+    accuracy: mean((j) => j.accuracy),
+    sourcing: mean((j) => j.sourcing),
+    community_handling: comm.length ? comm.reduce((a, b) => a + b, 0) / comm.length : null,
+    structure_tone: mean((j) => j.structure_tone),
+    pitfalls_hit: [...new Set(panel.flatMap((j) => j.pitfalls_hit))],
+    cited_refs: [...new Set(panel.flatMap((j) => j.cited_refs))].slice(0, 12),
+    overall: mean((j) => j.overall),
+    rationale: panel.map((j, i) => `[${models[i].replace('claude-', '')}] ${j.rationale}`).join(' '),
+  }
 
   const covered = s.key_points_covered.filter(Boolean).length
   const keyPointCoverage = c.rubric.key_points.length ? covered / c.rubric.key_points.length : 1
@@ -72,7 +92,8 @@ ${a.answer || '(empty)'}`
   const unresolved = refs.filter((_, i) => status[i] === 'invalid')
 
   const passed =
-    !truncated && s.language_correct && s.overall >= 4 && s.accuracy >= 4 && keyPointCoverage >= 0.6
+    // any judge seeing a serious error (accuracy <= 2) fails the case
+    !truncated && s.language_correct && s.overall >= 3.75 && s.accuracy >= 3.75 && keyPointCoverage >= 0.6 && panel.every((j) => j.accuracy > 2)
 
   return {
     judgeCost,
