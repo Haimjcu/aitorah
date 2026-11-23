@@ -9,6 +9,7 @@ import { generateFeaturedImage } from '@/lib/image-gen'
 import { classifyIntent } from '@/lib/rag/intent'
 import { retrieve, formatSourcesForPrompt } from '@/lib/rag/retrieval'
 import { buildStudyPartnerSystemPrompt } from '@/lib/ai/prompts'
+import { ANSWER_MODEL, routeParams } from '@/lib/ai/models'
 import { cacheDel } from '@/lib/redis'
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -139,8 +140,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const systemPrompt = buildStudyPartnerSystemPrompt(passagesText)
 
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 2048,
+      ...routeParams(ANSWER_MODEL),
       system: systemPrompt,
       messages: [{ role: 'user', content: existing.question }],
     })

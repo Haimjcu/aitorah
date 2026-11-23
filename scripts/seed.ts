@@ -6,6 +6,7 @@ import { normalizeQuestion, generateSlug } from '@/lib/db/qa'
 import { classifyIntent } from '@/lib/rag/intent'
 import { retrieve, formatSourcesForPrompt } from '@/lib/rag/retrieval'
 import { buildStudyPartnerSystemPrompt } from '@/lib/ai/prompts'
+import { ANSWER_MODEL, routeParams } from '@/lib/ai/models'
 import { generateFeaturedImage } from '@/lib/image-gen'
 import seedData from './seed-questions.json'
 
@@ -71,8 +72,7 @@ async function seedQuestion(
   const systemPrompt = buildStudyPartnerSystemPrompt(passagesText)
 
   const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 2048,
+    ...routeParams(ANSWER_MODEL),
     system: systemPrompt,
     messages: [{ role: 'user', content: question }],
   })

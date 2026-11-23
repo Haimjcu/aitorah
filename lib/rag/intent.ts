@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { INTENT_MODEL, routeParams } from '@/lib/ai/models'
 
 export type IntentType =
   | 'text_lookup'
@@ -97,13 +98,16 @@ export async function classifyIntent(
   client: Anthropic
 ): Promise<ParsedIntent> {
   const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 512,
+    ...routeParams(INTENT_MODEL),
     messages: [{ role: 'user', content: question }],
     system: INTENT_PROMPT,
   })
 
-  const text = response.content[0].type === 'text' ? response.content[0].text : ''
+  // Content may start with a thinking block on Claude 5.x — collect text blocks only.
+  const text = response.content
+    .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+    .map((b) => b.text)
+    .join('')
 
   try {
     const jsonMatch = text.match(/\{[\s\S]*\}/)

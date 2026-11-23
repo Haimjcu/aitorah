@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { retrieve, formatSourcesForPrompt, sourcesToClientFormat } from '@/lib/rag/retrieval'
 import { buildStudyPartnerSystemPrompt } from '@/lib/ai/prompts'
+import { ANSWER_MODEL, routeParams } from '@/lib/ai/models'
 import { saveQaPair, findSimilarQuestion } from '@/lib/db/qa'
 import { checkRateLimit } from '@/lib/ratelimit'
 import { classifyIntent } from '@/lib/rag/intent'
@@ -70,8 +71,7 @@ export async function POST(req: NextRequest) {
     const clientSources = sourcesToClientFormat(sources)
 
     const stream = await client.messages.stream({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 2048,
+      ...routeParams(ANSWER_MODEL),
       system: systemPrompt,
       messages: messages
         .filter((m: { role: string; content: string }) => m.role === 'user' || m.role === 'assistant')
@@ -90,9 +90,24 @@ export async function POST(req: NextRequest) {
             controller.enqueue(encoder.encode(chunk.delta.text))
           }
         }
+
+        // Don't cache refused or truncated answers.
+        const { stop_reason } = await stream.finalMessage()
+        let complete = stop_reason === 'end_turn'
+        if (stop_reason === 'refusal') {
+          console.warn('Chat answer refused by model')
+          controller.enqueue(encoder.encode(
+            fullAnswer
+              ? '\n\n*The answer was interrupted. Please try rephrasing your question.*'
+              : 'I wasn\'t able to answer this question. Please try rephrasing it.'
+          ))
+        } else if (stop_reason === 'max_tokens') {
+          console.warn('Chat answer hit max_tokens')
+          complete = false
+        }
         controller.close()
 
-        if (hasDb && fullAnswer.length > 50) {
+        if (hasDb && complete && fullAnswer.length > 50) {
           saveQaPair(lastUserMessage.content, fullAnswer, sources).catch(() => {})
         }
       },
