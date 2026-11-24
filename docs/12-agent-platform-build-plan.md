@@ -1,6 +1,6 @@
 # 12 — Agent Platform: Build Plan
 
-Status: **building on `harness` (M0–M7 built and tested locally; quality tuning and owner reviews before launch)** · Created 2026-11-23
+Status: **building on `harness` (M0–M7 built and tested locally; held-out evals done; waiting on owner + rabbi reviews before launch)** · Created 2026-11-23 · Last updated 2026-11-24
 
 Builds on `docs/11-agent-redesign-research-plan.md` (research, chat-corpus findings, owner decisions). This doc is the **how and in what order**.
 
@@ -22,7 +22,7 @@ Builds on `docs/11-agent-redesign-research-plan.md` (research, chat-corpus findi
 
 **Found during M2:** legacy retrieval calls Sefaria with `version=primary`, which returns Hebrew/Aramaic only, so the legacy prompt never gets Sefaria's English translations. The agent tools request Hebrew + English + the user's language.
 
-**Found during M0 (production bug, legacy):** `/api/chat` saves *every* turn to `qa_pairs`, including follow-ups like "and without the a?", which then lack context on public SEO pages. The cache lookup only runs on first turns, but the save runs on all of them. Fix: save only first-turn answers (one-line change). Awaiting owner decision.
+**Found during M0 (production bug, legacy):** `/api/chat` saves *every* turn to `qa_pairs`, including follow-ups like "and without the a?", which then lack context on public SEO pages. The cache lookup only runs on first turns, but the save runs on all of them. **Fixed on `harness`:** `/api/chat` and `/api/agent` save only first-turn answers (and `/api/agent` never saves project chats). The ~522 bad rows already in production still need cleanup (owner item 7).
 
 ## Eval results so far (2026-11-23)
 
@@ -38,7 +38,10 @@ Builds on `docs/11-agent-redesign-research-plan.md` (research, chat-corpus findi
 - **Judge bias found:** Opus-as-judge scored Opus-written halacha answers 100% pass; Sonnet-as-judge scored the same answers 4%. Evals now average an Opus + Sonnet judge panel. Human calibration (blind grading page) is required before trusting absolute numbers.
 - **Halacha:** Opus 5.5 answers had **0 serious errors** under both judges (Sonnet-based setups: 8–10 of 23). Halacha is now routed to Opus (`HALACHA_ANSWER_MODEL`), at about 5× cost for those answers (≈ +45% total). Owner to confirm.
 - Variant A chosen as default (medium effort). B is slower, costlier, and less accurate despite more passes.
-- **Running:** final held-out test split (127 cases) for legacy vs. agent with the judge panel.
+- **Held-out test split (119 shared cases, Opus + Sonnet judge panel), 2026-11-23: legacy 18% / agent 20% pass (tie, p ≈ 0.84).** Overall 3.05 → 3.18, accuracy 3.23 → 3.39 (agent higher on 50 questions, lower on 25).
+- **Serious errors: legacy 25, agent 13.** Paired: 16 only-legacy vs. 4 only-agent, p ≈ 0.01. Halacha (17 cases, Opus): serious errors 3 → 1, accuracy 3.12 → 3.44, pass 12% → 24%.
+- Cost $0.032 → $0.057 per answer; latency 82 s → 98 s under eval load.
+- **Conclusion:** the agent makes about half as many serious mistakes but does not yet produce more top-quality answers. Weak spots: Gemara (0% both), Tanakh (agent 26% vs. legacy 37%), machshava (25% vs. 40%). Next quality work waits on human rubric review and blind-grading calibration.
 
 ## Open items (owner)
 
@@ -53,9 +56,30 @@ Builds on `docs/11-agent-redesign-research-plan.md` (research, chat-corpus findi
 
 ## Open items (engineering)
 
-- Latency: ~76–80 s per answer under eval load. Measure single-user latency; reduce tool rounds and add streaming progress.
-- Invented-source rate: the earlier "bad refs" metric counted Sefaria rate limits as invalid. Fixed (`lib/sefaria/verify.ts`); recheck of baseline refs is running.
+- Latency: ~98 s per answer under eval load (legacy 82 s). Measure single-user latency; reduce tool rounds and add streaming progress.
+- Invented-source rate (rechecked with `lib/sefaria/verify.ts`): refs Sefaria rejects per answer: **legacy 0.32, agent 0.12** (earlier 4.51 / 1.84 were mostly rate-limit noise). Upper bound: many rejects are works Sefaria lacks or book-level names (Yabia Omer, Yalkut Yosef, Igrot Moshe). Consider an allowlist of known works not on Sefaria.
 - Quality: topic-by-topic tuning on the train split (Gemara, halacha, calendar first) after the rubrics are human-reviewed. Use more cases or repeated judging to detect ~5-point gains.
+
+## Session handoff (2026-11-24)
+
+**Where things stand**
+- All M0–M7 code is on `harness`. Nothing has been pushed; production is unchanged.
+- Not yet committed: this doc and the held-out test-split reports `evals/runs/2026-11-23T20-23-26-agent-test.*` and `evals/runs/2026-11-23T20-25-55-legacy-test.*`.
+- No background jobs are running. The local Docker Postgres `aitorah-pg` (port 5433) is still up. Stop it with `docker stop aitorah-pg`, start it again with `docker start aitorah-pg`.
+- The Railway Postgres TCP proxy was closed after the exports. To re-export chats, re-create it temporarily (`railway tcp-proxy`, project `ai-torah`), then delete it.
+- Eval and API spend for 2026-11-23 was about $120, mostly judging.
+
+**Bottom line of the evals:** about half as many serious errors (13 vs. 25, p ≈ 0.01) and about 2.7× fewer rejected citations (0.12 vs. 0.32 per answer). The pass rate is tied (20% vs. 18%). The cost is about 1.8× and answers take about 16 s longer.
+
+**To resume**
+1. Run `AGENT_ENABLED=true scripts/dev-local.sh npm run dev` and open `/study`.
+2. Re-run evals with `scripts/dev-local.sh npm run eval -- --target agent --split test`. Compare runs with `analysis/scripts/compare-runs.cjs`, re-check refs with `analysis/scripts/recheck-refs.ts`.
+3. When the rabbi finishes blind grading, read the grades from the artifact's database (`grades/*`) and join them with `analysis/data/blind-key.json` to calibrate the AI judges against human grades.
+4. Next engineering work, in order:
+   - calibrate the judges against the blind grades;
+   - tune Gemara, Tanakh, and machshava on the train split;
+   - reduce latency;
+   - add an allowlist of works that are not on Sefaria.
 
 ## Launch runbook (M8)
 
