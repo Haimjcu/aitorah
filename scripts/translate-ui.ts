@@ -1,6 +1,8 @@
 // Generate lib/i18n/messages/<locale>.json from en.ts with Claude Sonnet 5.5.
 // Machine translations: have a native speaker review each file (see "_meta.review" in the JSON).
-//   scripts/dev-local.sh npx tsx scripts/translate-ui.ts [he fr ...]
+//   scripts/dev-local.sh npx tsx scripts/translate-ui.ts [he fr ...] [--all]
+// By default only keys missing from a locale file are translated, so reviewed translations are kept.
+// --all retranslates everything.
 import Anthropic from '@anthropic-ai/sdk'
 import fs from 'fs'
 import { en } from '@/lib/i18n/messages/en'
@@ -34,12 +36,26 @@ async function translateSection(locale: string, section: Record<string, unknown>
 }
 
 // One request per section keeps each structured-output schema small.
-async function translate(locale: string) {
+async function translate(locale: string, all: boolean) {
+  const file = `lib/i18n/messages/${locale}.json`
+  const existing: Record<string, Record<string, string>> = !all && fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : {}
   const out: Record<string, unknown> = { _meta: { review: 'machine-translated by Claude; needs native-speaker review', generated: new Date().toISOString().slice(0, 10) } }
-  for (const [name, section] of Object.entries(en)) out[name] = await translateSection(locale, section as Record<string, unknown>)
-  fs.writeFileSync(`lib/i18n/messages/${locale}.json`, JSON.stringify(out, null, 2) + '\n')
-  console.log(`${locale}: written`)
+  let added = 0
+  for (const [name, section] of Object.entries(en) as [string, Record<string, string>][]) {
+    const have = existing[name] ?? {}
+    const missing = Object.fromEntries(Object.entries(section).filter(([k]) => !(k in have)))
+    const fresh = Object.keys(missing).length ? await translateSection(locale, missing) : {}
+    added += Object.keys(fresh).length
+    // Keep en.ts key order; drop keys no longer in en.ts.
+    out[name] = Object.fromEntries(Object.keys(section).map((k) => [k, k in have ? have[k] : fresh[k]]))
+  }
+  if (!all && existing._meta) out._meta = { ...existing._meta, updated: new Date().toISOString().slice(0, 10), lastAddedKeys: added }
+  fs.writeFileSync(file, JSON.stringify(out, null, 2) + '\n')
+  console.log(`${locale}: ${added} strings translated`)
 }
 
-const targets = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(NAMES)
-Promise.all(targets.map(translate)).then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1) })
+const args = process.argv.slice(2)
+const all = args.includes('--all')
+const picked = args.filter((a) => !a.startsWith('--'))
+const targets = picked.length ? picked : Object.keys(NAMES)
+Promise.all(targets.map((l) => translate(l, all))).then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1) })

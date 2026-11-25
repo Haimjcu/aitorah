@@ -7,6 +7,8 @@ import { getDb } from './db'
 import { users } from './db/schema'
 
 const hasDb = !!process.env.DATABASE_URL
+/** An email sign-in this soon after the account was created counts as the signup (sends the user to Settings). */
+const NEW_ACCOUNT_WINDOW_MS = 2 * 60 * 1000
 
 const providers: NextAuthConfig['providers'] = [
   Credentials({
@@ -42,7 +44,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: 'jwt' },
   providers,
   callbacks: {
-    async jwt({ token, user, account, profile }) {
+    async jwt({ token, user, account, profile, trigger }) {
+      // The client clears the new-account flag (update()) once it has sent the user to Settings.
+      if (trigger === 'update') delete token.newUser
       if (user) {
         token.id = user.id
         token.name = user.name
@@ -68,10 +72,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               name: (profile.name as string) ?? null,
               image: (profile.picture as string) ?? null,
             }).returning({ id: users.id })
-            if (created) token.sub = created.id
+            if (created) {
+              token.sub = created.id
+              token.newUser = true
+            }
           }
         } catch (e) {
           console.error('Failed to link Google user to DB:', e)
+        }
+      }
+      // Email signups: the account was just created by /api/auth/signup, then signed in.
+      if (account?.provider === 'credentials' && user?.id && hasDb) {
+        try {
+          const [row] = await getDb().select({ createdAt: users.createdAt }).from(users).where(eq(users.id, user.id)).limit(1)
+          if (row?.createdAt && Date.now() - row.createdAt.getTime() < NEW_ACCOUNT_WINDOW_MS) token.newUser = true
+        } catch (e) {
+          console.error('Failed to check new account:', e)
         }
       }
       return token
@@ -82,6 +98,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (token.name) session.user.name = token.name as string
         if (token.email) session.user.email = token.email as string
         if (token.picture) session.user.image = token.picture as string
+        session.user.newUser = !!token.newUser
       }
       return session
     },

@@ -4,10 +4,13 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import Link from 'next/link'
-import { CopyButton } from '@/components/ui/CopyButton'
+import { InfoTip } from '@/components/ui/InfoTip'
 import { LogoMark } from '@/components/ui/LogoMark'
 import { AuthModal } from './AuthModal'
 import { CorrectionForm } from './CorrectionForm'
+import { AnswerMarkdown } from './AnswerMarkdown'
+import { CopyAnswerButton, CorrectionButton, DownloadMenu } from './AnswerActions'
+import { toClipboardText, type ExportDoc } from '@/lib/export/answer'
 import { useI18n } from '@/components/providers/I18nProvider'
 
 type Source = { ref: string; type?: string; category?: string; similarity?: number; hebrew?: string; english?: string; url?: string }
@@ -53,9 +56,9 @@ function formatRelativeTime(dateStr: string): string {
 export function ChatInterface() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const { data: authSession, status: authStatus } = useSession()
+  const { data: authSession, status: authStatus, update: updateAuthSession } = useSession()
   const isAuthenticated = authStatus === 'authenticated'
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const hints = [t('chat.hint1'), t('chat.hint2'), t('chat.hint3'), t('chat.hint4')]
 
   const [messages, setMessages] = useState<Message[]>([GREETING])
@@ -78,6 +81,11 @@ export function ChatInterface() {
   const projectRef = useRef<{ id: string; title: string } | null>(null)
   const [notice, setNotice] = useState<{ text: string; memoryId?: string } | null>(null)
   const [correcting, setCorrecting] = useState<number | null>(null)
+  // Rendered answer elements, for rich copy and PDF export
+  const answerRefs = useRef<Record<number, HTMLDivElement | null>>({})
+  // Saving a pre-signup conversation; the new-account redirect waits for it so the chat is not lost
+  const anonSaveRef = useRef<Promise<string | null> | null>(null)
+  const onboardingStarted = useRef(false)
 
   currentSessionIdRef.current = currentSessionId
   projectRef.current = project
@@ -149,7 +157,7 @@ export function ChatInterface() {
     if (!hasContent || currentSessionIdRef.current) return
 
     const title = generateTitle(messages.find((m) => m.role === 'user')?.content || 'New Session')
-    fetch('/api/sessions', {
+    anonSaveRef.current = fetch('/api/sessions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title, messages }),
@@ -160,10 +168,26 @@ export function ChatInterface() {
           setCurrentSessionId(created.id)
           setSessionList((prev) => [{ id: created.id, title: created.title, updatedAt: created.updatedAt }, ...prev])
         }
+        return (created?.id as string | undefined) ?? null
       })
-      .catch(() => {})
+      .catch(() => null)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated])
+
+  // New account (email or Google): go to Settings once to set language, community, and level.
+  // Waits for the pre-signup chat to be saved so "Back to your chat" can reopen it.
+  useEffect(() => {
+    if (!authSession?.user?.newUser || onboardingStarted.current) return
+    onboardingStarted.current = true
+    ;(async () => {
+      const savedId = anonSaveRef.current ? await anonSaveRef.current : null
+      const sessionId = savedId ?? currentSessionIdRef.current
+      await updateAuthSession({ onboarded: true }).catch(() => null)
+      const next = sessionId ? `/study?session=${sessionId}` : '/study'
+      router.push(`/settings?welcome=1&next=${encodeURIComponent(next)}`)
+    })()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authSession?.user?.newUser])
 
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || isStreaming) return
@@ -389,6 +413,27 @@ export function ChatInterface() {
 
   const hasUserMessages = messages.some((m) => m.role === 'user')
 
+  // ---- Export helpers (copy / download) ----
+  const questionBefore = (i: number) => [...messages.slice(0, i)].reverse().find((m) => m.role === 'user')?.content ?? ''
+  const exportLabels = () => ({
+    question: t('chat.exportQuestion'),
+    sources: t('chat.exportSources'),
+    footer: t('chat.exportFooter', { date: new Date().toLocaleDateString(locale) }),
+  })
+  const answerIndexes = () => messages.flatMap((m, i) => (m.role === 'assistant' && i > 0 && m.content ? [i] : []))
+  const exportItem = (i: number) => ({ question: questionBefore(i), answer: messages[i].content, sources: messages[i].sources })
+  const answerDoc = (i: number): ExportDoc => ({ kind: 'answer', title: questionBefore(i) || t('chat.exportChatTitle'), items: [exportItem(i)], labels: exportLabels() })
+  const chatDoc = (): ExportDoc => {
+    const first = messages.find((m) => m.role === 'user')?.content
+    return {
+      kind: 'chat',
+      title: project?.title ?? (first ? generateTitle(first) : t('chat.exportChatTitle')),
+      items: answerIndexes().map(exportItem),
+      labels: exportLabels(),
+    }
+  }
+  const answerHtml = (i: number) => answerRefs.current[i]?.innerHTML
+
   // Session sidebar content (reused for desktop and mobile drawer)
   const sessionSidebarContent = (
     <>
@@ -570,14 +615,24 @@ export function ChatInterface() {
             </div>
           ) : (
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-              {(project || notice) && (
-                <div className="px-6 pt-3 flex flex-col gap-2">
+              <div className="px-6 pt-3 flex flex-col gap-2">
+                <div className="flex items-center gap-2 min-h-[34px]">
                   {project && (
-                    <div className="text-xs text-[var(--text-sec)] flex items-center gap-2">
+                    <div className="text-xs text-[var(--text-sec)] flex items-center gap-2 min-w-0">
                       <span className="px-2 py-0.5 rounded bg-[#eef2ff] text-[var(--primary)] font-medium">{t('chat.project')}</span>
-                      <Link href={`/projects/${project.id}`} className="hover:underline">{project.title}</Link>
+                      <Link href={`/projects/${project.id}`} className="hover:underline truncate" dir="auto">{project.title}</Link>
+                      <InfoTip text={t('chat.projectTip')} label={t('projects.info')} />
                     </div>
                   )}
+                  {!isStreaming && answerIndexes().length > 0 && (
+                    <DownloadMenu
+                      className="ms-auto"
+                      label={t('chat.downloadChat')}
+                      getDoc={chatDoc}
+                      getHtml={() => answerIndexes().map((i) => answerHtml(i) ?? '')}
+                    />
+                  )}
+                </div>
                   {notice && (
                     <div className="text-xs bg-[var(--surface-alt)] border border-[var(--border)] rounded-md px-3 py-2 flex items-center gap-3">
                       <span className="flex-1" dir="auto">{notice.text}</span>
@@ -587,8 +642,7 @@ export function ChatInterface() {
                       <button onClick={() => setNotice(null)} aria-label={t('chat.dismiss')} className="text-[var(--text-sec)]">✕</button>
                     </div>
                   )}
-                </div>
-              )}
+              </div>
               <div ref={scrollRef} className="flex-1 overflow-y-auto flex flex-col gap-5 p-6 pb-2">
                 {messages.map((msg, i) => (
                   <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'self-end flex-row-reverse max-w-[80%]' : 'max-w-[85%]'}`}>
@@ -596,22 +650,28 @@ export function ChatInterface() {
                       {msg.role === 'user' ? 'U' : 'א'}
                     </div>
                     <div>
-                      <div dir="auto" className={`rounded-xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${msg.role === 'user' ? 'bg-[var(--primary)] text-white rounded-se-sm' : 'bg-white border border-[var(--border)] rounded-ss-sm'}`}>
-                        {msg.content === GREETING.content ? t('chat.greeting') : msg.content}
-                      </div>
-                      {msg.role === 'assistant' && msg.content && !isStreaming && (
-                        <div className="mt-1.5 flex items-center gap-3">
-                          <CopyButton text={msg.content} />
-                          {i > 0 && (
-                            <button onClick={() => setCorrecting(correcting === i ? null : i)} className="text-xs text-[var(--text-sec)] hover:text-[var(--text)]">
-                              {t('chat.suggestCorrection')}
-                            </button>
-                          )}
+                      {msg.role === 'user' || msg.content === GREETING.content ? (
+                        <div dir="auto" className={`rounded-xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${msg.role === 'user' ? 'bg-[var(--primary)] text-white rounded-se-sm' : 'bg-white border border-[var(--border)] rounded-ss-sm'}`}>
+                          {msg.content === GREETING.content ? t('chat.greeting') : msg.content}
+                        </div>
+                      ) : (
+                        <div ref={(el) => { answerRefs.current[i] = el }} className="rounded-xl rounded-ss-sm px-4 py-3 bg-white border border-[var(--border)]">
+                          <AnswerMarkdown content={msg.content} />
+                        </div>
+                      )}
+                      {msg.role === 'assistant' && i > 0 && msg.content && !(isStreaming && i === messages.length - 1) && (
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <CopyAnswerButton
+                            text={toClipboardText(exportItem(i), t('chat.exportSources'))}
+                            getHtml={() => answerHtml(i)}
+                          />
+                          <DownloadMenu label={t('chat.download')} getDoc={() => answerDoc(i)} getHtml={() => [answerHtml(i) ?? '']} />
+                          <CorrectionButton active={correcting === i} onClick={() => setCorrecting(correcting === i ? null : i)} />
                         </div>
                       )}
                       {correcting === i && (
                         <CorrectionForm
-                          question={[...messages.slice(0, i)].reverse().find((m) => m.role === 'user')?.content ?? ''}
+                          question={questionBefore(i)}
                           answer={msg.content}
                           meta={msg.meta}
                           onDone={() => setCorrecting(null)}

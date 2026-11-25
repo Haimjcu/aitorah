@@ -2,8 +2,11 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useI18n } from '@/components/providers/I18nProvider'
+import { LOCALES, LOCALE_NAMES, type Locale } from '@/lib/i18n/config'
+import { saveLocale } from '@/lib/i18n/set-locale'
 
 interface Profile {
   uiLanguage: string | null
@@ -22,9 +25,10 @@ const NUSACH: [string, string][] = [
 ]
 const LEVELS: [string, string][] = [['', 'settings.notSet'], ['beginner', 'settings.beginner'], ['intermediate', 'settings.intermediate'], ['advanced', 'settings.advanced']]
 
-export function ProfileSettings() {
+export function ProfileSettings({ welcome = false, next = null }: { welcome?: boolean; next?: string | null }) {
   const { status } = useSession()
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
+  const router = useRouter()
   const [profile, setProfile] = useState<Profile>({ uiLanguage: null, answerLanguage: null, nusach: null, level: null })
   const [memories, setMemories] = useState<{ id: string; content: string }[]>([])
   const [saved, setSaved] = useState(false)
@@ -58,9 +62,33 @@ export function ProfileSettings() {
     await fetch(`/api/memories?id=${id}`, { method: 'DELETE' }); load()
   }
 
-  if (status === 'unauthenticated') {
-    return <p className="text-sm text-[var(--text-sec)]"><Link href="/study" className="text-[var(--primary)] underline">{t('settings.signInPrompt')}</Link></p>
+  async function changeLocale(nextLocale: Locale) {
+    await saveLocale(nextLocale, status === 'authenticated')
+    setSaved(true); setTimeout(() => setSaved(false), 1500)
+    router.refresh()
   }
+
+  const siteLanguage = (
+    <label className="flex flex-col gap-1">
+      <span className="text-sm font-medium">{t('settings.siteLanguage')}</span>
+      <span className="text-xs text-[var(--text-sec)]">{t('settings.siteLanguageHint')}</span>
+      <select value={locale} onChange={(e) => changeLocale(e.target.value as Locale)}
+        className="text-sm px-3 py-2 border border-[var(--border)] rounded-md bg-white max-w-sm">
+        {LOCALES.map((l) => <option key={l} value={l}>{LOCALE_NAMES[l]}</option>)}
+      </select>
+    </label>
+  )
+
+  if (status === 'unauthenticated') {
+    return (
+      <div className="max-w-2xl flex flex-col gap-6">
+        <section className="bg-white border border-[var(--border)] rounded-xl p-5 flex flex-col gap-4">{siteLanguage}</section>
+        <p className="text-sm text-[var(--text-sec)]"><Link href="/study" className="text-[var(--primary)] underline">{t('settings.signInPrompt')}</Link></p>
+      </div>
+    )
+  }
+
+  const continueHref = next ?? '/study'
 
   const select = (label: string, hint: string, value: string | null, options: [string, string][], key: keyof Profile) => (
     <label className="flex flex-col gap-1">
@@ -75,14 +103,26 @@ export function ProfileSettings() {
 
   return (
     <div className="max-w-2xl flex flex-col gap-6">
+      {welcome && (
+        <section className="rounded-xl p-5 border border-[var(--accent)] bg-[#fbf6e9]">
+          <h2 className="font-serif text-xl font-semibold text-[var(--primary)]">{t('settings.welcomeTitle')}</h2>
+          <p className="text-sm text-[var(--text)] mt-1">{t('settings.welcomeBody')}</p>
+        </section>
+      )}
       <section className="bg-white border border-[var(--border)] rounded-xl p-5 flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold">{t('settings.preferences')}</h3>
           {saved && <span className="text-xs text-green-700">{t('settings.saved')}</span>}
         </div>
+        {siteLanguage}
         {select(t('settings.community'), t('settings.communityHint'), profile.nusach, NUSACH, 'nusach')}
         {select(t('settings.answerLanguage'), t('settings.answerLanguageHint'), profile.answerLanguage, LANGS, 'answerLanguage')}
         {select(t('settings.level'), t('settings.levelHint'), profile.level, LEVELS, 'level')}
+        {welcome && (
+          <Link href={continueHref} className="self-start mt-1 px-4 py-2 text-sm font-medium rounded-lg bg-[var(--primary)] text-white hover:bg-[var(--primary-light)]">
+            {continueHref.startsWith('/study?session=') ? t('settings.backToChat') : t('settings.startLearning')} <span className="inline-block rtl:rotate-180">→</span>
+          </Link>
+        )}
       </section>
 
       <section className="bg-white border border-[var(--border)] rounded-xl p-5">

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useI18n } from '@/components/providers/I18nProvider'
 
 const CATEGORIES = ['wrong_fact', 'wrong_source', 'missing_view', 'translation', 'formatting', 'tone', 'other']
@@ -16,6 +16,14 @@ export function CorrectionForm({ question, answer, meta, qaPairId, onDone }: {
   const [category, setCategory] = useState('wrong_fact')
   const [text, setText] = useState('')
   const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+  const formRef = useRef<HTMLFormElement>(null)
+  const textRef = useRef<HTMLTextAreaElement>(null)
+
+  // The form opens under the answer, often below the visible chat area: bring it into view and focus it.
+  useEffect(() => {
+    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    textRef.current?.focus({ preventScroll: true })
+  }, [])
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -35,11 +43,11 @@ export function CorrectionForm({ question, answer, meta, qaPairId, onDone }: {
   }
 
   return (
-    <form onSubmit={submit} className="mt-2 bg-[var(--surface-alt)] border border-[var(--border)] rounded-md p-3 flex flex-col gap-2 max-w-xl">
+    <form ref={formRef} onSubmit={submit} className="mt-2 bg-[var(--surface-alt)] border border-[var(--border)] rounded-md p-3 flex flex-col gap-2 max-w-xl">
       <select value={category} onChange={(e) => setCategory(e.target.value)} className="text-xs px-2 py-1.5 border border-[var(--border)] rounded bg-white">
         {CATEGORIES.map((v) => <option key={v} value={v}>{t(`correction.${v}`)}</option>)}
       </select>
-      <textarea value={text} onChange={(e) => setText(e.target.value)} dir="auto" required minLength={5}
+      <textarea ref={textRef} value={text} onChange={(e) => setText(e.target.value)} dir="auto" required minLength={5}
         placeholder={t('correction.placeholder')}
         className="text-sm px-3 py-2 border border-[var(--border)] rounded bg-white h-24" />
       <div className="flex items-center gap-2">

@@ -8,7 +8,7 @@ import yi from './messages/yi.json'
 import pt from './messages/pt.json'
 import de from './messages/de.json'
 
-const ALL: Record<Locale, Partial<Messages>> = { en, he, fr, es, ru, yi, pt, de } as Record<Locale, Partial<Messages>>
+const ALL = { en, he, fr, es, ru, yi, pt, de } as unknown as Record<Locale, Partial<Messages>>
 
 /** Locale messages with English fallback for any key not yet translated. */
 export function getMessages(locale: Locale): Messages {

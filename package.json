@@ -26,6 +26,7 @@
     "@vercel/postgres": "^0.10.0",
     "ai": "^6.0.197",
     "bcryptjs": "^3.0.3",
+    "docx": "^9.16.0",
     "drizzle-orm": "^0.45.2",
     "ioredis": "^5.11.1",
     "lucide-react": "^1.17.0",
@@ -38,6 +39,7 @@
     "react-dom": "^18",
     "react-hook-form": "^7.78.0",
     "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
     "resend": "^6.12.4",
     "sharp": "^0.35.2",
     "zod": "^4.4.3"

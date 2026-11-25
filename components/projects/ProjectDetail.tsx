@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useI18n } from '@/components/providers/I18nProvider'
+import { InfoTip } from '@/components/ui/InfoTip'
 
 interface Detail {
   project: { id: string; title: string; description: string | null }
@@ -80,13 +81,16 @@ export function ProjectDetail({ id }: { id: string }) {
             {d.project.description && <p className="text-sm text-[var(--text-sec)] mt-1 whitespace-pre-wrap" dir="auto">{d.project.description}</p>}
           </>
         )}
-        <Link href={`/study?project=${id}`} className="inline-block mt-4 px-3 py-1.5 text-sm rounded-md bg-[var(--primary)] text-white">
-          {t('projects.newChat')}
-        </Link>
+        <div className="mt-4 flex items-center gap-2">
+          <Link href={`/study?project=${id}`} className="inline-block px-3 py-1.5 text-sm rounded-md bg-[var(--primary)] text-white">
+            {t('projects.newChat')}
+          </Link>
+          <InfoTip text={t('projects.newChatTip')} label={t('projects.info')} />
+        </div>
       </section>
 
       <section>
-        <h3 className="text-sm font-semibold mb-2">{t('projects.chatsHeading')}</h3>
+        <h3 className="text-sm font-semibold mb-2 flex items-center gap-1.5">{t('projects.chatsHeading')} <InfoTip text={t('projects.chatsTip')} label={t('projects.info')} /></h3>
         {d.sessions.length === 0 ? <p className="text-sm text-[var(--text-sec)]">{t('projects.noChats')}</p> : (
           <div className="flex flex-col gap-1">
             {d.sessions.map((s) => (
@@ -99,13 +103,14 @@ export function ProjectDetail({ id }: { id: string }) {
       </section>
 
       <section>
-        <h3 className="text-sm font-semibold mb-1">{t('projects.memoryHeading')}</h3>
+        <h3 className="text-sm font-semibold mb-1 flex items-center gap-1.5">{t('projects.memoryHeading')} <InfoTip text={t('projects.memoryTip')} label={t('projects.info')} /></h3>
         <p className="text-xs text-[var(--text-sec)] mb-2">{t('projects.memoryHint')}</p>
         <form onSubmit={addNote} className="flex gap-2 mb-2">
           <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('projects.memoryPlaceholder')} dir="auto"
             className="flex-1 text-sm px-3 py-2 border border-[var(--border)] rounded-md" />
           <button className="px-3 py-1.5 text-sm rounded-md border border-[var(--primary)] text-[var(--primary)]">{t('projects.add')}</button>
         </form>
+        {d.memories.length === 0 && <p className="text-sm text-[var(--text-sec)]">{t('projects.noMemory')}</p>}
         <div className="flex flex-col gap-1">
           {d.memories.map((m) => (
             <div key={m.id} className="bg-white border border-[var(--border)] rounded-md px-3 py-2 text-sm flex items-start gap-3">
@@ -117,7 +122,7 @@ export function ProjectDetail({ id }: { id: string }) {
       </section>
 
       <section>
-        <h3 className="text-sm font-semibold mb-1">{t('projects.filesHeading')}</h3>
+        <h3 className="text-sm font-semibold mb-1 flex items-center gap-1.5">{t('projects.filesHeading')} <InfoTip text={t('projects.filesTip')} label={t('projects.info')} /></h3>
         <ProjectFiles projectId={id} files={d.files} onChange={load} />
       </section>
     </div>
@@ -160,6 +165,7 @@ function ProjectFiles({ projectId, files, onChange }: { projectId: string; files
       </label>
       {uploading && <p className="text-xs text-[var(--text-sec)]">{uploading}</p>}
       {error && <p className="text-xs text-red-700">{error}</p>}
+      {files.length === 0 && !uploading && <p className="text-sm text-[var(--text-sec)]">{t('projects.noFiles')}</p>}
       {files.map((f) => (
         <div key={f.id} className="bg-white border border-[var(--border)] rounded-md px-3 py-2 text-sm flex items-center gap-3">
           <a href={`/api/projects/${projectId}/files/${f.id}`} target="_blank" rel="noopener noreferrer" className="flex-1 hover:underline" dir="auto">{f.filename}</a>

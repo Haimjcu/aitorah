@@ -3,18 +3,16 @@
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useI18n } from '@/components/providers/I18nProvider'
-import { LOCALES, LOCALE_COOKIE, LOCALE_NAMES, type Locale } from '@/lib/i18n/config'
+import { LOCALES, LOCALE_NAMES, type Locale } from '@/lib/i18n/config'
+import { saveLocale } from '@/lib/i18n/set-locale'
 
 export function LanguageSwitcher({ className = '' }: { className?: string }) {
   const { locale, t } = useI18n()
   const router = useRouter()
   const { status } = useSession()
 
-  function change(next: Locale) {
-    document.cookie = `${LOCALE_COOKIE}=${next}; path=/; max-age=31536000; samesite=lax`
-    if (status === 'authenticated') {
-      fetch('/api/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uiLanguage: next }) }).catch(() => {})
-    }
+  async function change(next: Locale) {
+    await saveLocale(next, status === 'authenticated')
     router.refresh()
   }
 
